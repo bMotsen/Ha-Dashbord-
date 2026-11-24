@@ -543,3 +543,8 @@ body.lite .flow-anim { filter: none; }
 .wx-card .btn { width: 100%; }
 .wx-range { position: relative; height: .4rem; border-radius: 999px; background: rgba(255, 255, 255, .1); }
 .wx-range i { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(90deg, #7dd3fc, #fcd34d); }
+
+/* Bil som billede */
+.car-photo { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; }
+.car-photo img { max-width: 100%; max-height: 10rem; width: auto; height: auto; object-fit: contain; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .45)); }
+.car-photo svg { position: absolute; right: 0; top: 50%; transform: translateY(-50%); max-width: 100%; max-height: 10rem; height: 100%; width: auto; aspect-ratio: 900/387; pointer-events: none; }
