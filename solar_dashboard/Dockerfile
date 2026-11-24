@@ -1,5 +1,5 @@
-ARG BUILD_FROM=python:3.12-slim-bookworm
-FROM ${BUILD_FROM}
+# Fast Python-image (nyere Home Assistant sender sit eget BUILD_FROM uden Python, så det bruges ikke)
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
