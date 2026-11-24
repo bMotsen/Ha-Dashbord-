@@ -121,7 +121,13 @@ class TuyaDevice:
         return next((c for c in codes if c in self.status), None)
 
 
-CAMERA_CATEGORIES = {"sp", "dghsxj", "sgbj"}
+CAMERA_CATEGORIES = {"sp", "dghsxj", "sgbj", "wvdp", "znjxj", "cjsxj"}
+
+
+def is_camera(d, extra_ids=()) -> bool:
+    text = f"{d.name} {d.info.get('product_name') or ''}".lower()
+    return (d.category in CAMERA_CATEGORIES or d.id in extra_ids
+            or any(w in text for w in ("camera", "kamera", "cam ", "doorbell", "dørklokke")))
 
 
 class TuyaProvider(threading.Thread):
@@ -229,6 +235,8 @@ class TuyaProvider(threading.Thread):
         if not devs and self.cloud is None:
             self.error = "Ingen Tuya-enheder: udfyld tuya.api_key og api_secret i config.yaml"
         LOG.info("Tuya: %d enheder (%d med lokal adgang)", len(devs), sum(1 for d in self.devices.values() if d.can_local()))
+        LOG.info("Tuya: enheder: %s", "; ".join(f"{d.name} [{d.category}]" for d in self.devices.values()))
+        LOG.info("Tuya: %d kameraer: %s", len(self.camera_list()), ", ".join(c["name"] for c in self.camera_list()) or "ingen")
 
     def _scan(self) -> None:
         """Find Tuya-enheders IP på det lokale netværk (UDP broadcast, ca. 20 sek)."""
@@ -440,7 +448,7 @@ class TuyaProvider(threading.Thread):
 
         views = []
         for d in sorted(devs, key=sort_key):
-            if d.category in CAMERA_CATEGORIES:
+            if is_camera(d, self.cfg.get("cameras") or ()):
                 continue
             if self._hidden(d):
                 continue
@@ -458,7 +466,7 @@ class TuyaProvider(threading.Thread):
         rename = self.cfg.get("rename") or {}
         out = []
         for d in self.devices.values():
-            if d.category in CAMERA_CATEGORIES and not self._hidden(d):
+            if is_camera(d, self.cfg.get("cameras") or ()) and not self._hidden(d):
                 out.append({"id": d.id, "name": rename.get(d.id) or d.name, "online": d.online})
         for name in (self.cfg.get("rtsp") or {}):
             if not any(c["name"] == name or c["id"] == name for c in out):

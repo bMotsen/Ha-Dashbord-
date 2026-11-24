@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#04160f">
+  <meta name="theme-color" content="#0A1412">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,46 +17,18 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Baggrund: dyb, mørk grøn med bløde former -->
-  <svg class="wallpaper" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="wpBand" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#1f7a5c" stop-opacity=".55"/>
-        <stop offset=".55" stop-color="#0f4a39" stop-opacity=".25"/>
-        <stop offset="1" stop-color="#062a20" stop-opacity="0"/>
-      </linearGradient>
-      <linearGradient id="wpMint" x1="0" y1="1" x2="1" y2="0">
-        <stop offset="0" stop-color="#0b3f35"/>
-        <stop offset=".5" stop-color="#14705a"/>
-        <stop offset="1" stop-color="#3fb48b"/>
-      </linearGradient>
-      <linearGradient id="wpDeep" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#03140f" stop-opacity="0"/>
-        <stop offset="1" stop-color="#010806" stop-opacity=".9"/>
-      </linearGradient>
-      <radialGradient id="wpGlow" cx=".2" cy=".15" r=".65">
-        <stop offset="0" stop-color="#2e9c74" stop-opacity=".38"/>
-        <stop offset="1" stop-color="#2e9c74" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <rect width="1600" height="1000" fill="url(#wpGlow)"/>
-    <path d="M-200 520 C 200 300, 700 180, 1250 260 S 1800 520, 1800 520 L 1800 -50 L -200 -50 Z" fill="url(#wpBand)" opacity=".5"/>
-    <path d="M-100 760 C 300 520, 820 470, 1260 560 C 1450 600, 1600 660, 1700 720 L 1700 1100 L -100 1100 Z" fill="#0a3a2d" opacity=".6"/>
-    <path d="M980 1100 C 1080 860, 1260 640, 1700 470 L 1700 1100 Z" fill="url(#wpMint)" opacity=".75"/>
-    <path d="M1180 1100 C 1260 930, 1400 800, 1700 700 L 1700 1100 Z" fill="#8fe3bf" opacity=".10"/>
-    <path d="M-100 1100 C 250 880, 640 830, 1000 900 C 1150 930, 1250 990, 1300 1100 Z" fill="url(#wpDeep)"/>
-  </svg>
+  <img class="wallpaper" src="img/wallpaper.svg" alt="" aria-hidden="true">
   <!-- Vejr bag fliserne (skyer, sol, stjerner) -->
   <canvas class="wx-back" id="wxBack" aria-hidden="true"></canvas>
 
   <div class="app" id="app">
     <header class="top">
-      <div class="chips chips-left" id="chipsLeft"></div>
+      <div class="top-side left"><button class="wx-tile" id="wxTile" aria-label="Vejret"></button></div>
       <div class="clock" id="clock" aria-live="off">
         <div class="clock-date" id="clockDate">&nbsp;</div>
         <div class="clock-time" id="clockTime">--:--</div>
       </div>
-      <div class="chips chips-right" id="chipsRight"></div>
+      <div class="top-side right"></div>
     </header>
 
     <main class="tiles">

@@ -89,7 +89,7 @@ function tickClock() {
 // ---------------------------------------------------------------- render
 function render() {
   if (!S) return;
-  renderChips();
+  renderWxTile();
   renderWeather();
   renderFlow();
   renderPrice();
@@ -114,58 +114,21 @@ function derived() {
   return { so, ch, car, carW, house, charging: carW > 100 || !!car.charging || ch.state === "charging" };
 }
 
-// ---------- chips
-function chip(ic, grad, title, sub) {
-  return `<div class="chip"><div class="chip-ic" style="background:${grad}">${icon(ic)}</div>
-    <div class="chip-txt"><div class="chip-title">${title}</div><div class="chip-sub">${sub}</div></div></div>`;
-}
-
-function renderChips() {
-  const { so, car, ch, carW, charging } = derived();
-  const en = S.energy || {};
-  const pr = S.prices || {};
-  const left = [];
-  const right = [];
-  const w = S.weather;
-  if (w && w.current) {
-    const c = w.current, d0 = (w.daily || [])[0];
-    left.push(`<div class="chip wx-chip" id="wxChip" role="button"><div class="wx-chip-ic">${wxIcon(c.icon, c.is_day)}</div>
-      <div class="chip-txt"><div class="chip-title">${num(c.temp, 0)}° · ${esc(c.text)}</div>
-      <div class="chip-sub">${d0 ? `↑ ${num(d0.max, 0)}°  ↓ ${num(d0.min, 0)}° · ` : ""}vind ${num(c.wind, 0)} m/s</div></div></div>`);
-  }
-  if (so.ok !== undefined && !(w && w.current)) {  // uden vejrdata: vis net-status i stedet
-    const g = so.grid_w;
-    if (g != null && g < -30) left.push(chip("arrow-up-from-line", GRAD.green, `Sælger ${kW(g)} kW`, `${num(pr.now?.sell, 2)} kr/kWh lige nu`));
-    else if (g != null && g > 30) left.push(chip("arrow-down-to-line", GRAD.red, `Køber ${kW(g)} kW`, `${num(pr.now?.total, 2)} kr/kWh lige nu`));
-    else left.push(chip("house-plug", GRAD.teal, "Selvforsynende", "Ingen strøm fra nettet"));
-  }
-  if (so.ok !== undefined) {
-    const g = so.grid_w;
-    const sub = g != null && g < -30 ? `Sælger ${kW(g)} kW · ${num(en.pv_kwh, 1)} kWh`
-      : g != null && g > 30 ? `Køber ${kW(g)} kW · ${num(en.pv_kwh, 1)} kWh` : `${num(en.pv_kwh, 1)} kWh produceret i dag`;
-    left.push(so.pv_w > 30
-      ? chip("sun", GRAD.sun, `Solceller ${kW(so.pv_w)} kW`, sub)
-      : chip("moon", GRAD.slate, "Solceller hviler", sub));
-  }
-  const name = esc(car.name || S.ui?.car_name || "ID.3");
-  if (car.ok || ch.ok) {
-    if (charging) {
-      const eta = car.eta ? ` · færdig ${hhmm(new Date(car.eta))}` : "";
-      right.push(chip("battery-charging", GRAD.blue, `${name} lader ${carW ? kW(carW) + " kW" : ""}`, `${num(car.soc, 0)} %${eta}`));
-    } else if (car.ok) {
-      right.push(chip("car-front", GRAD.blue, `${name} ${num(car.soc, 0)} %`, `${num(car.range_km, 0)} km rækkevidde`));
-    }
-  }
-  if (pr.ok && pr.now) {
-    const lvl = pr.now.level;
-    const ch3 = pr.cheapest;
-    const when = ch3 ? `Billigst kl. ${hhmm(new Date(ch3.start))}–${hhmm(new Date(ch3.end))}` : "";
-    if (lvl === "low") right.push(chip("leaf", GRAD.green, "Billig strøm nu", `${num(pr.now.total, 2)} kr/kWh`));
-    else if (lvl === "high") right.push(chip("trending-up", GRAD.red, "Dyr strøm nu", when || `${num(pr.now.total, 2)} kr/kWh`));
-    else right.push(chip("zap", GRAD.amber, `Elpris ${num(pr.now.total, 2)} kr`, when));
-  }
-  setHTML($("chipsLeft"), left.join(""));
-  setHTML($("chipsRight"), right.join(""));
+// ---------- vejr-flise (øverst til venstre)
+function renderWxTile() {
+  const w = S.weather, t = $("wxTile");
+  if (!w || !w.current) { setHTML(t, ""); t.hidden = true; return; }
+  t.hidden = false;
+  const c = w.current, d0 = (w.daily || [])[0];
+  t.dataset.fx = c.effect || "none";
+  t.classList.toggle("night", c.is_day === false);
+  setHTML(t, `<div class="wx-scene"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="wx-tile-ic">${wxIcon(c.icon, c.is_day)}</div>
+    <div class="wx-tile-txt">
+      <div class="wx-tile-temp">${num(c.temp, 0)}°</div>
+      <div class="wx-tile-text">${esc(c.text)}</div>
+      <div class="wx-tile-sub">${d0 ? `↑ ${num(d0.max, 0)}°  ↓ ${num(d0.min, 0)}° · ` : ""}vind ${num(c.wind, 0)} m/s</div>
+    </div>`);
 }
 
 // ---------- energiflow
@@ -552,11 +515,19 @@ function renderCameras() {
       <div class="cam-name">${esc(c.name)}</div></button>`).join("");
   grid.querySelectorAll("img").forEach((img) => {
     img.addEventListener("load", () => img.parentElement.classList.add("ok"));
-    img.addEventListener("error", () => {
+    img.addEventListener("error", async () => {
       if (!img.dataset.live) return;
-      img.parentElement.classList.remove("ok");
-      img.parentElement.querySelector(".cam-off span").textContent = "Ingen forbindelse";
-      setTimeout(() => img.dataset.live && !document.hidden && camStart(img), 15000);
+      const box = img.parentElement;
+      box.classList.remove("ok");
+      let msg = "Ingen forbindelse";
+      try {  // find ud af hvorfor: serveren svarer med årsagen
+        const ctl = new AbortController();
+        const r = await fetch(camSrc(img.dataset.id, 160, 1), { signal: ctl.signal });
+        if (!r.ok) msg = (await r.json().catch(() => ({}))).detail || `Fejl ${r.status}`;
+        ctl.abort();
+      } catch { /* ignorer */ }
+      box.querySelector(".cam-off span").textContent = msg.length > 120 ? msg.slice(0, 117) + "…" : msg;
+      setTimeout(() => img.dataset.live && !document.hidden && camStart(img), 30000);
     });
     camStart(img);
   });
@@ -664,31 +635,42 @@ $("chargerBtn").addEventListener("click", async () => {
 });
 
 // ---------- dock
-function pill(ic, grad, t, s) {
-  return `<div class="pill"><div class="pill-ic" style="background:${grad}">${icon(ic)}</div><div><div class="pill-t">${t}</div>${s ? `<div class="pill-s">${s}</div>` : ""}</div></div>`;
-}
-
+let tickerKey = "";
 function renderDock() {
   if (!S) return;
-  const { so, carW, house } = derived();
-  const en = S.energy || {};
-  const items = S.devices?.items || [];
-  const switches = items.filter((d) => d.on != null);
-  const onCount = switches.filter((d) => d.on).length;
   const demoParts = S.ui?.demo_parts || [];
   const age = (Date.now() - lastOk) / 1000;
-  let status;
-  if (fetchError || age > 60) status = [GRAD.red, "Ingen forbindelse", `Sidst ${hhmm(new Date(lastOk || Date.now()))}`, "wifi-off"];
-  else if (demoParts.length || S.prices?.demo) status = [GRAD.violet, "Demo-data", `Opdateret ${hhmm(now())}`, "sparkles"];
-  else status = [GRAD.green, "Live", `Opdateret ${hhmm(now())}`, "activity"];
-  setHTML($("dock"), [
-    pill("lightbulb", GRAD.amber, `${onCount} ${onCount === 1 ? "enhed" : "enheder"} tændt`, `af ${switches.length}`),
-    pill("house", GRAD.blue, `Forbrug ${kW(so.load_w)} kW`, carW > 30 ? `Hus ${kW(house)} · Bil ${kW(carW)} kW` : "lige nu"),
-    `<div class="pill status" id="statusPill"><div class="pill-ic" style="background:${status[0]}">${icon(status[3])}</div><div><div class="pill-t">${status[1]}</div><div class="pill-s">${status[2]}</div></div></div>`,
-    pill("piggy-bank", GRAD.green, `Solgt for ${num(en.export_dkk, 2)} kr`, `i dag · ${num(en.export_kwh, 1)} kWh`),
-    pill("receipt-text", GRAD.red, `Købt for ${num(en.import_dkk, 2)} kr`, `i dag · ${num(en.import_kwh, 1)} kWh`),
-  ].join(""));
+  const bad = fetchError || age > 60;
+  const demo = demoParts.length || S.prices?.demo;
+  const items = S.news?.items || [];
+  const key = items.map((n) => n.url).join("|").slice(0, 600) + (S.news?.demo ? "d" : "");
+  if (key !== tickerKey || !$("tickerTrack")) {
+    tickerKey = key;
+    const one = items.length
+      ? items.map((n) => `<a class="news-item" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer"><b class="src ${n.src === "DR" ? "dr" : "nj"}">${esc(n.src)}</b>${esc(n.title)}</a><span class="news-sep">◆</span>`).join("")
+      : `<span class="news-empty">${S.news?.error ? "Nyheder kunne ikke hentes lige nu" : "Henter nyheder …"}</span>`;
+    $("dock").innerHTML = `<div class="ticker"><div class="ticker-track" id="tickerTrack"><div class="tk">${one}</div><div class="tk" aria-hidden="true">${one}</div></div></div>
+      <button class="status-dot" id="statusPill" aria-label="Status"></button>`;
+    const track = $("tickerTrack");
+    requestAnimationFrame(() => {
+      const w = track.scrollWidth / 2;
+      track.style.animationDuration = Math.max(25, w / 60) + "s";  // ca. 60 px i sekundet
+    });
+  }
+  const dot = $("statusPill");
+  dot.className = "status-dot " + (bad ? "bad" : demo ? "demo" : "live");
+  dot.title = bad ? "Ingen forbindelse" : demo ? "Demo-data" : "Live";
 }
+
+let tkTimer;
+$("dock").addEventListener("pointerdown", (e) => {
+  if (!e.target.closest(".ticker")) return;
+  $("dock").classList.add("paused");
+  clearTimeout(tkTimer);
+});
+const tkResume = () => { clearTimeout(tkTimer); tkTimer = setTimeout(() => $("dock").classList.remove("paused"), 4000); };
+$("dock").addEventListener("pointerup", tkResume);
+$("dock").addEventListener("pointercancel", tkResume);
 
 $("dock").addEventListener("click", (e) => {
   if (!e.target.closest("#statusPill")) return;
@@ -748,7 +730,7 @@ function renderWeatherModal() {
 }
 
 document.addEventListener("click", (e) => {
-  if (e.target.closest("#wxChip")) { $("wxModal").hidden = false; $("wxCard")._html = null; renderWeatherModal(); }
+  if (e.target.closest("#wxTile")) { $("wxModal").hidden = false; $("wxCard")._html = null; renderWeatherModal(); }
   else if (e.target.closest("#wxClose") || e.target === $("wxModal")) $("wxModal").hidden = true;
 });
 

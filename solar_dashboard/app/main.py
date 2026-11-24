@@ -14,6 +14,7 @@ from .config import WEB_DIR, load_config
 from .energy import EnergyTracker
 from .providers.demo import DemoProvider
 from .providers.prices import PriceProvider
+from .providers.news import NewsProvider, demo_news
 from .providers.weather import WeatherProvider, demo_weather
 from .store import Store, iso
 
@@ -68,6 +69,9 @@ if weather_live:
 elif demo_ok:
     demo_parts.add("weather")
 
+if not force_demo and cfg["news"].get("enabled", True):
+    threads.append(NewsProvider(cfg["news"], store))
+
 demo = DemoProvider(store, tracker, tz, demo_parts) if demo_parts else None
 if demo:
     threads.append(demo)
@@ -98,6 +102,8 @@ def api_state() -> JSONResponse:
                                                    {"id": "demo-2", "name": "Baghave", "online": True},
                                                    {"id": "demo-3", "name": "Gadedør", "online": True},
                                                    {"id": "demo-4", "name": "Garage", "online": True}]}
+    if not (snap.get("news") or {}).get("items") and demo_ok:
+        snap["news"] = demo_news()
     if not weather_live and demo_ok:
         snap["weather"] = demo_weather(tz, wcfg.get("demo_effect") or "snow")
     snap["energy"] = tracker.summary()

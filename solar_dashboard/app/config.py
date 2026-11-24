@@ -72,6 +72,12 @@ DEFAULTS: dict[str, Any] = {
         "cheap_window_hours": 3,
         "refresh_minutes": 30,
     },
+    "news": {
+        "enabled": True,
+        "refresh_minutes": 10,
+        # egne kilder: [{"name": "TV2 Nord", "feeds": ["https://..."], "limit": 8}]
+        "sources": None,
+    },
     "weather": {
         "enabled": True,
         "latitude": None,           # fx 55.68 (find dit hus på Google Maps: højreklik -> koordinater)
