@@ -1,0 +1,31 @@
+configuration:
+  solplanet_host:
+    name: Solplanet dongle IP
+    description: IP address of the Solplanet WiFi/LAN dongle. Empty = demo data.
+  battery_capacity_kwh:
+    name: Battery capacity (kWh)
+  price_area:
+    name: Price area
+    description: DK1 = Jutland/Funen, DK2 = Zealand.
+  grid_company:
+    name: Grid company
+  supplier_markup:
+    name: Supplier markup (DKK/kWh excl. VAT)
+  sell_fee:
+    name: Sell fee (DKK/kWh)
+  vw_username:
+    name: VW e-mail
+  vw_password:
+    name: VW password
+  car_name:
+    name: Car name
+  tuya_api_key:
+    name: Tuya Access ID
+  tuya_api_secret:
+    name: Tuya Access Secret
+  tuya_device_id:
+    name: Tuya device ID
+  weather_effects:
+    name: Weather effects
+  demo_when_disabled:
+    name: Show demo data

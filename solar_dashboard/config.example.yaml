@@ -1,0 +1,95 @@
+# ============================================================================
+#  Solar Dashboard – konfiguration
+#  Kopiér denne fil til config.yaml og udfyld. Genstart bagefter:
+#     sudo systemctl restart solar-dashboard
+#  Alt der ikke er slået til vises med demo-data (lilla "Demo"-mærke).
+# ============================================================================
+
+server:
+  port: 8080
+
+ui:
+  title: Hjem
+  refresh_seconds: 5
+  night_dim: [23, 6]        # dæmp skærmen kl. 23-06. Skriv null for at slå fra.
+
+# Sæt til true for at se dashboardet KUN med demo-data
+demo: false
+
+# ---------------------------------------------------------------------------
+#  Solplanet inverter + batteri (lokalt via WiFi/LAN-donglen – ingen sky)
+# ---------------------------------------------------------------------------
+solplanet:
+  enabled: false
+  host: 192.168.1.50          # donglens IP-adresse (se din router eller Solplanet-appen)
+  scheme: auto                # auto / http / https
+  battery_capacity_kwh: 10    # bruges til "fuld om / tom om"
+  # Normalt behøver du ikke røre ved resten:
+  # inverter_sn: ""           # findes automatisk
+  # battery_sn: ""            # prøver inverter-SN og dongle-SN automatisk
+  # meter_sn: ""
+  # invert_grid: false        # sæt true hvis køb/salg vises omvendt
+  # battery_power_positive: discharge   # kun hvis batteriet viser forkert retning
+  # pv_source: auto           # auto / battery / inverter / strings
+
+# ---------------------------------------------------------------------------
+#  Elpris (timepris inkl. moms, elafgift, nettarif og Energinet)
+# ---------------------------------------------------------------------------
+prices:
+  enabled: true
+  area: DK1                   # DK1 = Jylland og Fyn, DK2 = Sjælland og øerne
+  grid_company: radius        # radius / cerius / n1 / trefor / konstant
+  # Har du et andet netselskab, så find GLN og kode med:
+  #    .venv/bin/python tools/find_tariff.py "navn på netselskab"
+  # og skriv dem her i stedet for grid_company:
+  # grid_gln: "5790000610099"
+  # grid_codes: ["DT_C_01"]
+  supplier_markup: 0.0        # din elhandlers tillæg i kr/kWh ekskl. moms (se din elregning)
+  sell_fee: 0.0               # fradrag på salgsprisen kr/kWh (fx 0.02)
+  cheap_window_hours: 3       # længden af "billigste periode" (fx til opladning af bilen)
+  # Alternativ: skriv din nettarif ind manuelt (kr/kWh ekskl. moms)
+  # manual_tariff:
+  #   winter: {low: 0.15, high: 0.45, peak: 1.35}   # okt-mar: 00-06 / 06-17 + 21-24 / 17-21
+  #   summer: {low: 0.15, high: 0.23, peak: 0.59}   # apr-sep
+
+# ---------------------------------------------------------------------------
+#  Vejr (Open-Meteo – gratis, ingen konto). Find dit hus på Google Maps,
+#  højreklik og kopiér koordinaterne.
+# ---------------------------------------------------------------------------
+weather:
+  latitude:  # fx 55.676
+  longitude: # fx 12.568
+  name: Hjem
+  effects: full               # full = regn/sne/skyer på hele skærmen, light = kun forgrund, off = slået fra
+  demo_effect: snow           # vises indtil koordinaterne er sat: snow, rain, clear, cloudy, thunder, fog
+
+# ---------------------------------------------------------------------------
+#  VW ID.3 (samme login som Volkswagen-appen)
+# ---------------------------------------------------------------------------
+vw:
+  enabled: false
+  username: din@email.dk
+  password: "dit-kodeord"
+  # spin: "1234"              # kun nødvendig for fjernbetjening, ikke til aflæsning
+  # vin: ""                   # kun hvis du har flere biler på kontoen
+  name: ID.3
+  battery_capacity_kwh: 58
+  interval_seconds: 300       # VW tillader minimum 180
+
+# ---------------------------------------------------------------------------
+#  Tuya / Smart Life (stikkontakter, lys, sensorer og elbil-laderen)
+#  Kræver en gratis konto på https://iot.tuya.com – se README.md trin for trin.
+# ---------------------------------------------------------------------------
+tuya:
+  enabled: false
+  region: eu
+  api_key: ""                 # "Access ID/Client ID" fra iot.tuya.com
+  api_secret: ""              # "Access Secret/Client Secret"
+  api_device_id: ""           # ID på én af dine enheder (bruges til at finde din konto)
+  use_local: true             # styr enheder direkte på LAN når muligt (hurtigt)
+  scan_network: true          # find enhedernes IP-adresser automatisk
+  ev_charger_id: ""           # tom = find laderen automatisk
+  confirm_charger_toggle: true
+  hide: []                    # fx ["Gammel pære", "bf12ab34cd56ef78gh90"]
+  rename: {}                  # fx {"bf12ab34cd56ef78gh90": "Lampe i stuen"}
+  order: []                   # fx ["Stue loftlampe", "Kaffemaskine"]

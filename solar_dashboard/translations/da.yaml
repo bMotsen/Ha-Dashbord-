@@ -1,0 +1,40 @@
+configuration:
+  solplanet_host:
+    name: Solplanet dongle IP
+    description: IP-adressen på Solplanet WiFi/LAN-donglen, fx 192.168.1.50. Tom = demo-data.
+  battery_capacity_kwh:
+    name: Batteriets størrelse (kWh)
+    description: Bruges til "fuld om / tom om".
+  price_area:
+    name: Prisområde
+    description: DK1 = Jylland og Fyn, DK2 = Sjælland og øerne.
+  grid_company:
+    name: Netselskab
+    description: Vælg "andet" og skriv GLN og kode i den avancerede config.yaml (se dokumentationen).
+  supplier_markup:
+    name: Elhandlerens tillæg (kr/kWh)
+    description: Ekskl. moms – står på din elregning.
+  sell_fee:
+    name: Fradrag på salgspris (kr/kWh)
+    description: Trækkes fra spotprisen når du sælger strøm.
+  vw_username:
+    name: VW e-mail
+    description: Samme login som Volkswagen-appen. Tom = demo-bil.
+  vw_password:
+    name: VW kodeord
+  car_name:
+    name: Bilens navn
+  tuya_api_key:
+    name: Tuya Access ID
+    description: Fra dit cloud-projekt på iot.tuya.com. Tom = demo-enheder.
+  tuya_api_secret:
+    name: Tuya Access Secret
+  tuya_device_id:
+    name: Tuya enheds-ID
+    description: ID på en af dine Tuya-enheder.
+  weather_effects:
+    name: Vejr-effekter
+    description: full = hele skærmen, light = kun forgrund (hurtigere), off = slået fra.
+  demo_when_disabled:
+    name: Vis demo-data
+    description: Vis demo-data for de dele der ikke er sat op endnu.

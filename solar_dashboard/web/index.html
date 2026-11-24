@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#04160f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hjem">
+  <title>Hjem – Energi</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="preload" href="fonts/inter-latin-opsz.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Baggrund: dyb, mørk grøn med bløde former -->
+  <svg class="wallpaper" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="wpBand" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#1f7a5c" stop-opacity=".55"/>
+        <stop offset=".55" stop-color="#0f4a39" stop-opacity=".25"/>
+        <stop offset="1" stop-color="#062a20" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="wpMint" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#0b3f35"/>
+        <stop offset=".5" stop-color="#14705a"/>
+        <stop offset="1" stop-color="#3fb48b"/>
+      </linearGradient>
+      <linearGradient id="wpDeep" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#03140f" stop-opacity="0"/>
+        <stop offset="1" stop-color="#010806" stop-opacity=".9"/>
+      </linearGradient>
+      <radialGradient id="wpGlow" cx=".2" cy=".15" r=".65">
+        <stop offset="0" stop-color="#2e9c74" stop-opacity=".38"/>
+        <stop offset="1" stop-color="#2e9c74" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <rect width="1600" height="1000" fill="url(#wpGlow)"/>
+    <path d="M-200 520 C 200 300, 700 180, 1250 260 S 1800 520, 1800 520 L 1800 -50 L -200 -50 Z" fill="url(#wpBand)" opacity=".5"/>
+    <path d="M-100 760 C 300 520, 820 470, 1260 560 C 1450 600, 1600 660, 1700 720 L 1700 1100 L -100 1100 Z" fill="#0a3a2d" opacity=".6"/>
+    <path d="M980 1100 C 1080 860, 1260 640, 1700 470 L 1700 1100 Z" fill="url(#wpMint)" opacity=".75"/>
+    <path d="M1180 1100 C 1260 930, 1400 800, 1700 700 L 1700 1100 Z" fill="#8fe3bf" opacity=".10"/>
+    <path d="M-100 1100 C 250 880, 640 830, 1000 900 C 1150 930, 1250 990, 1300 1100 Z" fill="url(#wpDeep)"/>
+  </svg>
+  <!-- Vejr bag fliserne (skyer, sol, stjerner) -->
+  <canvas class="wx-back" id="wxBack" aria-hidden="true"></canvas>
+
+  <div class="app" id="app">
+    <header class="top">
+      <div class="chips chips-left" id="chipsLeft"></div>
+      <div class="clock" id="clock" aria-live="off">
+        <div class="clock-date" id="clockDate">&nbsp;</div>
+        <div class="clock-time" id="clockTime">--:--</div>
+      </div>
+      <div class="chips chips-right" id="chipsRight"></div>
+    </header>
+
+    <main class="tiles">
+      <section class="tile t-flow" id="tFlow">
+        <div class="tile-head">
+          <h2>Energi nu</h2>
+          <span class="tag" id="flowTag"></span>
+        </div>
+        <div class="flow" id="flow">
+          <svg class="flow-lines" id="flowSvg"></svg>
+          <div id="flowNodes"></div>
+        </div>
+      </section>
+
+      <section class="tile t-batt" id="tBatt">
+        <div class="tile-head">
+          <h2>Batteri</h2>
+          <span class="tag" id="battTag"></span>
+        </div>
+        <div class="gauge" id="battGauge"></div>
+        <div class="mini-row" id="battMini"></div>
+      </section>
+
+      <section class="tile t-price" id="tPrice">
+        <div class="tile-head">
+          <h2>Elpris <small id="priceArea"></small></h2>
+          <span class="tag" id="priceTag"></span>
+        </div>
+        <div id="priceBody"></div>
+      </section>
+
+      <section class="tile t-today" id="tToday">
+        <div class="tile-head">
+          <h2>I dag</h2>
+          <span class="tag" id="todayTag"></span>
+        </div>
+        <div id="todayBody"></div>
+      </section>
+
+      <section class="tile t-car" id="tCar">
+        <div class="tile-head">
+          <h2 id="carTitle">ID.3</h2>
+          <div class="head-right">
+            <span class="tag" id="carTag"></span>
+            <button class="round-btn" id="chargerBtn" hidden aria-label="Start/stop lader"></button>
+          </div>
+        </div>
+        <div id="carBody"></div>
+      </section>
+
+      <section class="tile t-dev" id="tDev">
+        <div class="tile-head">
+          <h2>Enheder</h2>
+          <span class="tag" id="devTag"></span>
+        </div>
+        <div class="dev-grid" id="devGrid"></div>
+      </section>
+    </main>
+
+    <footer class="dock" id="dock"></footer>
+  </div>
+
+  <!-- Vejr foran fliserne (regndråber, sne, lyn) -->
+  <canvas class="wx-front" id="wxFront" aria-hidden="true"></canvas>
+
+  <div class="modal" id="wxModal" hidden><div class="modal-card wx-card" id="wxCard"></div></div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-icon" id="modalIcon"></div>
+      <h3 id="modalTitle"></h3>
+      <p id="modalText"></p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="modalCancel">Annuller</button>
+        <button class="btn primary" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+name: Solar Dashboard
+version: "1.2.0"
+slug: solar_dashboard
+description: Glas-dashboard med solceller, batteri, elpris, VW ID.3, Tuya-enheder og vejr
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: auto
+host_network: true
+ingress: true
+ingress_port: 8765
+panel_icon: mdi:solar-power-variant
+panel_title: Energi
+homeassistant_api: true
+map:
+  - addon_config:rw
+options:
+  solplanet_host: ""
+  battery_capacity_kwh: 10
+  price_area: DK1
+  grid_company: radius
+  supplier_markup: 0
+  sell_fee: 0
+  vw_username: ""
+  vw_password: ""
+  car_name: ID.3
+  tuya_api_key: ""
+  tuya_api_secret: ""
+  tuya_device_id: ""
+  weather_effects: full
+  demo_when_disabled: true
+schema:
+  solplanet_host: str?
+  battery_capacity_kwh: float?
+  price_area: list(DK1|DK2)
+  grid_company: list(radius|cerius|n1|trefor|konstant|andet)
+  supplier_markup: float
+  sell_fee: float
+  vw_username: str?
+  vw_password: password?
+  car_name: str
+  tuya_api_key: str?
+  tuya_api_secret: password?
+  tuya_device_id: str?
+  weather_effects: list(full|light|off)
+  demo_when_disabled: bool
