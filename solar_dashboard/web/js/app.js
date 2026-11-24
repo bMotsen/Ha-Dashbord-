@@ -703,30 +703,50 @@ function renderWeatherModal() {
   const w = S.weather;
   if (!w || !w.current) return;
   const c = w.current;
-  const hours = (w.hourly || []).slice(0, 12).map((h) => `
-    <div class="wx-h"><span>${pad(new Date(h.time).getHours())}</span>${wxIcon(h.icon, h.is_day)}<b>${num(h.temp, 0)}°</b>
-    <em>${h.precip_prob != null ? h.precip_prob + " %" : ""}</em></div>`).join("");
+  const hrs = (w.hourly || []).slice(0, 24);
+  const COL = 54;                       // bredde pr. time
+  const Wd = hrs.length * COL, H = 96;
+  const temps = hrs.map((h) => h.temp);
+  const tmin = Math.min(...temps), tmax = Math.max(...temps), span = Math.max(tmax - tmin, 3);
+  const yT = (t) => 14 + (1 - (t - tmin) / span) * (H - 34);
+  const pts = hrs.map((h, i) => [i * COL + COL / 2, yT(h.temp)]);
+  let line = "";
+  pts.forEach((p, i) => {
+    if (!i) line = `M${p[0]},${p[1]}`;
+    else { const q = pts[i - 1], mx = (q[0] + p[0]) / 2; line += ` C${mx},${q[1]} ${mx},${p[1]} ${p[0]},${p[1]}`; }
+  });
+  const area = line + ` L${pts[pts.length - 1][0]},${H} L${pts[0][0]},${H} Z`;
+  const curve = `<svg class="yr-curve" width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}">
+      <defs><linearGradient id="yrA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FB8AE" stop-opacity=".4"/><stop offset="1" stop-color="#8FB8AE" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#yrA)"/><path d="${line}" fill="none" stroke="#DCEBE6" stroke-width="2.5" stroke-linecap="round"/>
+      ${pts.map((p, i) => `<text x="${p[0]}" y="${p[1] - 7}" text-anchor="middle" class="yr-t">${num(hrs[i].temp, 0)}°</text>`).join("")}</svg>`;
+  const pmax = Math.max(1, ...hrs.map((h) => h.precip || 0));
+  const col = (h, i) => `<div class="yr-c" style="width:${COL}px">${i === 0 || new Date(h.time).getHours() === 0 ? `<em>${WEEKDAY[new Date(h.time).getDay()]}</em>` : "<em></em>"}<b>${pad(new Date(h.time).getHours())}</b>${wxIcon(h.icon, h.is_day)}</div>`;
+  const rain = hrs.map((h) => `<div class="yr-r" style="width:${COL}px"><i style="height:${Math.max(0, Math.min(100, ((h.precip || 0) / pmax) * 100))}%"></i><span>${h.precip ? num(h.precip, 1) : ""}</span></div>`).join("");
+  const wind = hrs.map((h) => `<div class="yr-w" style="width:${COL}px"><svg viewBox="0 0 24 24" style="transform:rotate(${(h.wind_dir ?? 0) + 180}deg)"><path d="M12 3 L18 19 L12 15 L6 19 Z" fill="#DCEBE6"/></svg><span>${num(h.wind, 0)}</span></div>`).join("");
   const days = w.daily || [];
-  const lo = Math.min(...days.map((d) => d.min)), hi = Math.max(...days.map((d) => d.max));
-  const span = Math.max(hi - lo, 1);
-  const rows = days.map((d, i) => `
-    <div class="wx-d"><span>${i === 0 ? "I dag" : WEEKDAY[new Date(d.date).getDay()]}</span>${wxIcon(d.icon, true)}
-      <em>${d.precip_prob ? d.precip_prob + " %" : ""}</em><b class="lo">${num(d.min, 0)}°</b>
-      <div class="wx-range"><i style="left:${((d.min - lo) / span) * 100}%;right:${100 - ((d.max - lo) / span) * 100}%"></i></div>
-      <b>${num(d.max, 0)}°</b></div>`).join("");
+  const rows = days.map((d, i) => {
+    const dt = new Date(d.date + "T12:00");
+    return `<div class="yr-d"><div class="yr-dn"><b>${i === 0 ? "I dag" : i === 1 ? "I morgen" : DAYS[dt.getDay()]}</b><span>${dt.getDate()}. ${MONTHS[dt.getMonth()].slice(0, 3)}</span></div>
+      ${wxIcon(d.icon, true)}<div class="yr-dt"><b>${num(d.max, 0)}°</b><span>${num(d.min, 0)}°</span></div>
+      <div class="yr-dp">${d.precip ? icon("droplets") + " " + num(d.precip, 1) + " mm" : ""}</div>
+      <div class="yr-dw">${d.wind != null ? icon("wind") + " " + num(d.wind, 0) + " m/s" : ""}</div></div>`;
+  }).join("");
   setHTML($("wxCard"), `
-    <div class="wx-top">
-      <div class="wx-big">${wxIcon(c.icon, c.is_day)}</div>
-      <div><div class="wx-temp">${num(c.temp, 0)}°</div><div class="wx-text">${esc(c.text)}${w.place ? " · " + esc(w.place) : ""}${w.demo ? " · demo" : ""}</div></div>
-      <div class="wx-meta">
-        <span>${icon("thermometer")} Føles som <b>${num(c.feels_like, 0)}°</b></span>
-        <span>${icon("wind")} Vind <b>${num(c.wind, 0)} m/s</b>${c.gusts ? ` (stød ${num(c.gusts, 0)})` : ""}</span>
-        <span>${icon("droplets")} Fugt <b>${num(c.humidity, 0)} %</b></span>
-      </div>
+    <div class="yr-head">
+      <div><div class="yr-place">${esc(w.place || "Vejret")}${w.demo ? " · demo" : ""}</div>
+        <div class="yr-big">${num(c.temp, 0)}°</div>
+        <div class="yr-text">${esc(c.text)} · føles som ${num(c.feels_like, 0)}°</div></div>
+      <div class="yr-ic">${wxIcon(c.icon, c.is_day)}</div>
+      <div class="yr-facts"><span>${icon("wind")} ${num(c.wind, 0)} m/s${c.gusts ? ` <small>(stød ${num(c.gusts, 0)})</small>` : ""}</span><span>${icon("droplets")} ${num(c.humidity, 0)} %</span><span>${icon("sun")} ${days[0]?.sunrise ? days[0].sunrise.slice(11, 16) : "–"} · ${days[0]?.sunset ? days[0].sunset.slice(11, 16) : "–"}</span></div>
+      <button class="round-btn yr-x" id="wxClose" aria-label="Luk">✕</button>
     </div>
-    <div class="wx-hours">${hours}</div>
-    <div class="wx-days">${rows}</div>
-    <button class="btn ghost" id="wxClose">Luk</button>`);
+    <div class="yr-sec"><div class="yr-lbl">De næste 24 timer</div>
+      <div class="yr-scroll"><div style="width:${Wd}px">
+        <div class="yr-row">${hrs.map(col).join("")}</div>${curve}
+        <div class="yr-sub">Nedbør (mm)</div><div class="yr-row yr-rain">${rain}</div>
+        <div class="yr-sub">Vind (m/s)</div><div class="yr-row">${wind}</div></div></div></div>
+    <div class="yr-sec"><div class="yr-lbl">Næste dage</div>${rows}</div>`);
 }
 
 document.addEventListener("click", (e) => {

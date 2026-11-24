@@ -86,7 +86,7 @@ class WeatherProvider(threading.Thread):
             "longitude": self.cfg["longitude"],
             "current": "temperature_2m,apparent_temperature,relative_humidity_2m,is_day,precipitation,rain,showers,"
                        "snowfall,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m",
-            "hourly": "temperature_2m,weather_code,precipitation_probability,precipitation,is_day",
+            "hourly": "temperature_2m,weather_code,precipitation_probability,precipitation,is_day,wind_speed_10m,wind_direction_10m",
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,"
                      "precipitation_probability_max,wind_speed_10m_max",
             "timezone": str(self.tz),
@@ -116,6 +116,8 @@ class WeatherProvider(threading.Thread):
                 "is_day": bool(h.get("is_day", [1] * (i + 1))[i]),
                 "precip": h.get("precipitation", [0] * (i + 1))[i],
                 "precip_prob": (h.get("precipitation_probability") or [None] * (i + 1))[i],
+                "wind": (h.get("wind_speed_10m") or [None] * (i + 1))[i],
+                "wind_dir": (h.get("wind_direction_10m") or [None] * (i + 1))[i],
             })
         days = []
         dd = d.get("daily") or {}
@@ -130,6 +132,7 @@ class WeatherProvider(threading.Thread):
                 "min": dd["temperature_2m_min"][i],
                 "precip": (dd.get("precipitation_sum") or [None] * (i + 1))[i],
                 "precip_prob": (dd.get("precipitation_probability_max") or [None] * (i + 1))[i],
+                "wind": (dd.get("wind_speed_10m_max") or [None] * (i + 1))[i],
                 "sunrise": (dd.get("sunrise") or [None] * (i + 1))[i],
                 "sunset": (dd.get("sunset") or [None] * (i + 1))[i],
             })
@@ -172,12 +175,13 @@ def demo_weather(tz: ZoneInfo, effect: str = "snow") -> dict:
         c = code if i < 5 else 3 if i < 12 else 2
         hourly.append({"time": t.isoformat(), "temp": round(-1.5 + 2.5 * math.sin((t.hour - 9) / 24 * 2 * math.pi), 1),
                        "code": c, "icon": describe(c)[1], "is_day": 8 <= t.hour < 16, "precip": 0.6 if i < 5 else 0,
-                       "precip_prob": 80 if i < 5 else 20})
+                       "precip_prob": 80 if i < 5 else 20,
+                       "wind": round(4 + 2 * math.sin(i / 4), 1), "wind_dir": 250 + i * 3})
     days = []
     for i, (c, mx, mn) in enumerate([(code, 1, -3), (2, 3, -2), (61, 5, 1), (3, 4, 0), (0, 2, -4), (71, 0, -3)]):
         d = (now + timedelta(days=i)).date().isoformat()
         days.append({"date": d, "code": c, "icon": describe(c)[1], "text": describe(c)[0], "max": mx, "min": mn,
-                     "precip": 2.1 if c in (73, 61, 71, 63) else 0, "precip_prob": 70 if c in (73, 61, 71, 63) else 10,
+                     "wind": 6 + i, "precip": 2.1 if c in (73, 61, 71, 63) else 0, "precip_prob": 70 if c in (73, 61, 71, 63) else 10,
                      "sunrise": f"{d}T08:21", "sunset": f"{d}T15:52"})
     return {
         "ok": True, "demo": True, "updated": iso(utcnow()), "place": "",
