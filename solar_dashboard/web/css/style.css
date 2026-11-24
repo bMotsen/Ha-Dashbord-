@@ -709,3 +709,60 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
 .yr-dt b { font-size: 1.05rem; } .yr-dt span { color: var(--fern-5); font-size: 1.05rem; }
 .yr-dp, .yr-dw { display: flex; align-items: center; gap: .3rem; font-size: .82rem; color: var(--fern-6); }
 .yr-dp { color: #bae6fd; }
+
+/* ===================== MOBIL (stående og liggende) =====================
+   Telefon = smal skærm eller lav skærm. Siden bliver rullbar i stedet for at presse alt ind. */
+@media (max-width: 760px), (max-height: 520px) {
+  :root { font-size: clamp(13px, 3.7vw, 16px); --gap: 10px; --pad: 14px; --radius: 1.5rem; }
+  html, body { height: auto; min-height: 100%; }
+  body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .app { height: auto; min-height: 100dvh; display: flex; flex-direction: column; gap: var(--gap); padding: 10px 10px 0; }
+  .top { display: flex; flex-direction: column; min-height: 0; gap: .5rem; }
+  .top .clock { order: 1; padding: 0; }
+  .top-side.left { order: 2; justify-content: center; }
+  .top-side.right { display: none; }
+  .clock-time { font-size: 6.4rem; }
+  .clock-date { font-size: 1.3rem; }
+  .wx-tile { width: 100%; height: 6.8rem; }
+  .tiles { display: grid; grid-template-columns: 1fr; grid-template-rows: none; grid-auto-rows: auto; gap: var(--gap); }
+  .tiles > .tile { grid-column: auto !important; grid-row: auto !important; min-height: 0; }
+  .t-today { display: flex !important; }
+  .t-flow { min-height: 19rem; order: 1; }
+  .t-price { order: 2; min-height: 21rem; }
+  .t-car { order: 3; min-height: 20rem; }
+  .t-cam { order: 4; }
+  .t-today { order: 5; min-height: 22rem; }
+  .t-dev { order: 6; }
+  .flow { min-height: 13rem; }
+  .bars { min-height: 6rem; }
+  .cam-grid { grid-auto-rows: auto; }
+  .cam { aspect-ratio: 16 / 9; }
+  .dev-grid { overflow: visible; -webkit-mask-image: none; mask-image: none; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(5rem, auto); flex: none; }
+  .t-today .spark { min-height: 5rem; flex: none; height: 6rem; }
+  .car-main { min-height: 8rem; }
+  .dock { position: sticky; bottom: 0; margin: 0 -10px; border-radius: 0; height: 3.4rem; padding-bottom: env(safe-area-inset-bottom); background: rgba(10, 20, 18, .88); border-width: 1px 0 0; z-index: 5; }
+  .tile-head h2 { font-size: 1.15rem; }
+  .news-item { font-size: .95rem; }
+  .modal-card.wx-card { max-height: 94dvh; }
+  .yr-head { grid-template-columns: 1fr auto; padding: 1.1rem 1.1rem .9rem; }
+  .yr-big { font-size: 4.2rem; }
+  .yr-ic { width: 5.4rem; height: 5.4rem; }
+  .yr-d { grid-template-columns: 5.2rem 2.4rem 3.8rem 1fr; }
+  .yr-dw { display: none; }
+  .cam-big { width: 96vw; }
+}
+/* telefon liggende: to kolonner */
+@media (max-height: 520px) and (min-width: 600px) {
+  :root { font-size: 13px; }
+  .top { flex-direction: row; align-items: center; justify-content: space-between; }
+  .top .clock { order: 2; }
+  .top-side.left { order: 1; flex: 1; }
+  .top-side.right { display: block; order: 3; flex: 1; }
+  .clock-time { font-size: 5rem; }
+  .clock-date { font-size: 1.05rem; }
+  .wx-tile { width: 18rem; height: 6rem; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .t-flow, .t-price, .t-car, .t-today { min-height: 20rem; }
+  .t-dev, .t-cam { min-height: 14rem; }
+  .dev-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
