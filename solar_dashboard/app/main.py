@@ -93,6 +93,11 @@ app = FastAPI(title="Solar Dashboard", lifespan=lifespan, docs_url="/api/docs", 
 def api_state() -> JSONResponse:
     snap = store.snapshot()
     snap["prices"] = prices.snapshot()
+    if (snap.get("cameras") or {}).get("items") is None and demo_ok:
+        snap["cameras"] = {"demo": True, "items": [{"id": "demo-1", "name": "Indkørsel", "online": True},
+                                                   {"id": "demo-2", "name": "Baghave", "online": True},
+                                                   {"id": "demo-3", "name": "Gadedør", "online": True},
+                                                   {"id": "demo-4", "name": "Garage", "online": True}]}
     if not weather_live and demo_ok:
         snap["weather"] = demo_weather(tz, wcfg.get("demo_effect") or "snow")
     snap["energy"] = tracker.summary()
@@ -175,6 +180,33 @@ def api_car_climate(body: dict = Body(...)) -> dict:
     except Exception as err:  # noqa: BLE001
         LOG.warning("Kunne ikke styre klima: %s", err)
         raise HTTPException(502, str(err)) from err
+
+
+@app.get("/api/camera/{cam_id}/stream")
+async def api_camera(cam_id: str, w: int = 480, fps: int = 4):
+    import asyncio
+
+    from fastapi.responses import StreamingResponse
+
+    from .providers.camera import mjpeg_stream
+
+    w = max(160, min(w, 1280))
+    fps = max(1, min(fps, 12))
+    demo_cam = cam_id.startswith("demo-")
+    source = ""
+    if not demo_cam:
+        if tuya is None:
+            raise HTTPException(404, "Tuya er ikke sat op")
+        try:
+            source = await asyncio.to_thread(tuya.stream_url, cam_id)
+        except KeyError as err:
+            raise HTTPException(404, "Ukendt kamera") from err
+        except Exception as err:  # noqa: BLE001
+            LOG.warning("Kamera %s: %s", cam_id, err)
+            raise HTTPException(502, str(err)) from err
+    return StreamingResponse(mjpeg_stream(source, w, fps, demo_cam),
+                             media_type="multipart/x-mixed-replace; boundary=frame",
+                             headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/health")

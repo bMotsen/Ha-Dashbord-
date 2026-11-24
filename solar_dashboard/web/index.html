@@ -72,13 +72,12 @@
         <div class="flow-msg" id="flowMsg" hidden></div>
       </section>
 
-      <section class="tile t-batt" id="tBatt">
+      <section class="tile t-cam" id="tCam">
         <div class="tile-head">
-          <h2>Batteri</h2>
-          <span class="tag" id="battTag"></span>
+          <h2>Kameraer</h2>
+          <span class="tag" id="camTag"></span>
         </div>
-        <div class="gauge" id="battGauge"></div>
-        <div class="mini-row" id="battMini"></div>
+        <div class="cam-grid" id="camGrid"></div>
       </section>
 
       <section class="tile t-price" id="tPrice">
@@ -122,6 +121,8 @@
 
   <!-- Vejr foran fliserne (regndråber, sne, lyn) -->
   <canvas class="wx-front" id="wxFront" aria-hidden="true"></canvas>
+
+  <div class="modal" id="camModal" hidden><div class="cam-big"><img id="camBig" alt=""><div class="cam-big-name" id="camBigName"></div><button class="round-btn cam-close" id="camClose" aria-label="Luk">✕</button></div></div>
 
   <div class="modal" id="wxModal" hidden><div class="modal-card wx-card" id="wxCard"></div></div>
 

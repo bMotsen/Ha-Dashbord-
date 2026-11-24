@@ -92,9 +92,9 @@ function render() {
   renderChips();
   renderWeather();
   renderFlow();
-  renderBattery();
   renderPrice();
   renderToday();
+  renderCameras();
   renderCar();
   renderDevices();
   renderDock();
@@ -271,41 +271,23 @@ function arcPath(cx, cy, r, a0, a1) {
   return `M${x0},${y0} A${r},${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1},${y1}`;
 }
 
-function renderBattery() {
+function batteryStrip() {
   const so = S.solar || {};
-  const soc = so.battery_soc;
-  const st = so.battery_state;
-  const tag = $("battTag");
+  if (so.has_battery === false) return "";
+  const soc = so.battery_soc, st = so.battery_state, b = so.battery_w;
   const stTxt = { charging: "Lader", discharging: "Aflader", idle: "Hviler", fault: "Fejl" }[st] || "–";
-  tag.className = "tag " + (so.demo ? "demo" : st === "charging" ? "green" : st === "discharging" ? "amber" : st === "fault" ? "red" : "");
-  tag.textContent = so.demo ? "Demo" : stTxt;
-
-  const A0 = 135, A1 = 405, cx = 100, cy = 96, r = 78;
-  const pct = Math.max(0, Math.min(100, soc ?? 0));
-  const ang = A0 + ((A1 - A0) * pct) / 100;
-  const kx = cx + r * Math.cos((ang * Math.PI) / 180), ky = cy + r * Math.sin((ang * Math.PI) / 180);
   const col = st === "discharging" ? ["#ffd166", "#ff8a3d"] : st === "charging" ? ["#2dd4bf", "#4ade80"] : ["#60a5fa", "#a5b4fc"];
-  const b = so.battery_w;
-  const sub = b != null && Math.abs(b) > 30
-    ? `${icon(b > 0 ? "arrow-down" : "arrow-up")} ${kW(b)} kW`
-    : so.battery_capacity_kwh && soc != null ? `${num((soc / 100) * so.battery_capacity_kwh, 1)} kWh` : "";
-  setHTML($("battGauge"), `
-    <svg viewBox="0 0 200 172" preserveAspectRatio="xMidYMid meet">
-      <defs><linearGradient id="gArc" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${col[0]}"/><stop offset="1" stop-color="${col[1]}"/></linearGradient></defs>
-      <path d="${arcPath(cx, cy, r, A0, A1)}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="13" stroke-linecap="round"/>
-      ${pct > 0 ? `<path d="${arcPath(cx, cy, r, A0, Math.max(ang, A0 + 0.5))}" fill="none" stroke="url(#gArc)" stroke-width="13" stroke-linecap="round" style="filter:drop-shadow(0 0 6px ${col[1]}88)"/>` : ""}
-      <circle cx="${kx}" cy="${ky}" r="8.5" fill="#fff" stroke="${col[1]}" stroke-width="3.5"/>
-    </svg>
-    <div class="gauge-center">
-      <div class="gauge-state">${so.has_battery === false ? "Intet batteri" : stTxt}</div>
-      <div class="gauge-num">${num(soc, 0)}<small>%</small></div>
-      <div class="gauge-sub">${sub}</div>
-    </div>`);
-  const etaLbl = st === "charging" ? "Fuld om" : st === "discharging" ? "Tom om" : "Tid";
-  setHTML($("battMini"), `
-    <div class="mini">${icon("thermometer")}<b>${so.battery_temp != null ? num(so.battery_temp, 1) + "°" : "–"}</b><span>Temperatur</span></div>
-    <div class="mini">${icon("timer")}<b>${dur(so.battery_eta_min)}</b><span>${etaLbl}</span></div>
-    <div class="mini">${icon("activity")}<b>${so.battery_soh != null ? num(so.battery_soh, 0) + " %" : "–"}</b><span>Sundhed</span></div>`);
+  const pct = Math.max(0, Math.min(100, soc ?? 0));
+  const R = 20, C = 2 * Math.PI * R;
+  const detail = b != null && Math.abs(b) > 30 ? `${stTxt} ${kW(b)} kW` : stTxt;
+  const eta = so.battery_eta_min != null ? `${st === "charging" ? "Fuld" : "Tom"} om ${dur(so.battery_eta_min)}` : (so.battery_capacity_kwh && soc != null ? `${num((soc / 100) * so.battery_capacity_kwh, 1)} kWh` : "");
+  return `<div class="batt-strip">
+    <svg viewBox="0 0 52 52" class="batt-ring"><defs><linearGradient id="bg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="${col[0]}"/><stop offset="1" stop-color="${col[1]}"/></linearGradient></defs>
+      <circle cx="26" cy="26" r="${R}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="6"/>
+      <circle cx="26" cy="26" r="${R}" fill="none" stroke="url(#bg)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(C * pct) / 100} ${C}" transform="rotate(-90 26 26)" style="filter:drop-shadow(0 0 4px ${col[1]}99)"/></svg>
+    <div class="batt-soc">${num(soc, 0)}<small>%</small></div>
+    <div class="batt-txt"><b>Batteri</b><span>${detail}</span>${eta ? `<em>${eta}</em>` : ""}</div>
+  </div>`;
 }
 
 // ---------- elpris
@@ -401,6 +383,7 @@ function renderToday() {
     </svg>`;
   const kr = (v) => `${num(v, 2)} kr`;
   setHTML($("todayBody"), `
+    ${batteryStrip()}
     <div class="spark">${spark}</div>
     <div class="stats">
       <div class="stat"><div class="stat-l" style="color:#ffd08a">${icon("sun")} Produceret</div><div class="stat-v">${num(en.pv_kwh, 1)}<small>kWh</small></div></div>
@@ -535,6 +518,64 @@ $("carBody").addEventListener("pointerdown", (e) => {
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", up);
+});
+
+// ---------- kameraer
+let camKey = "";
+const camSrc = (id, w, fps) => `api/camera/${encodeURIComponent(id)}/stream?w=${w}&fps=${fps}&t=${Date.now()}`;
+function camStart(img) {
+  img.dataset.live = "1";
+  img.classList.remove("err");
+  img.src = camSrc(img.dataset.id, 480, 4);
+}
+function camStop(img) { img.dataset.live = ""; img.removeAttribute("src"); }
+
+function renderCameras() {
+  const cam = S.cameras || {};
+  const items = cam.items || [];
+  const tag = $("camTag");
+  tag.className = "tag " + (cam.demo ? "demo" : items.length ? "green" : "");
+  tag.innerHTML = cam.demo ? "Demo" : items.length ? `<span class="dot pulse"></span> Live` : "";
+  const grid = $("camGrid");
+  const key = items.map((c) => c.id + c.name).join("|").slice(0, 400);
+  if (key === camKey) return;  // billederne må ikke genstartes ved hver opdatering
+  camKey = key;
+  if (!items.length) {
+    grid.className = "cam-grid";
+    grid.innerHTML = `<div class="empty">Ingen kameraer fundet i Tuya.<br>Tilføj dem i Smart Life-appen.</div>`;
+    return;
+  }
+  const shown = items.slice(0, 4);
+  grid.className = "cam-grid n" + shown.length;
+  grid.innerHTML = shown.map((c) => `<button class="cam" data-id="${esc(c.id)}" aria-label="${esc(c.name)}">
+      <img data-id="${esc(c.id)}" alt="" draggable="false"><div class="cam-off">${icon("cctv")}<span>Henter …</span></div>
+      <div class="cam-name">${esc(c.name)}</div></button>`).join("");
+  grid.querySelectorAll("img").forEach((img) => {
+    img.addEventListener("load", () => img.parentElement.classList.add("ok"));
+    img.addEventListener("error", () => {
+      if (!img.dataset.live) return;
+      img.parentElement.classList.remove("ok");
+      img.parentElement.querySelector(".cam-off span").textContent = "Ingen forbindelse";
+      setTimeout(() => img.dataset.live && !document.hidden && camStart(img), 15000);
+    });
+    camStart(img);
+  });
+}
+$("camGrid").addEventListener("click", (e) => {
+  const b = e.target.closest(".cam");
+  if (!b) return;
+  const big = $("camBig");
+  $("camBigName").textContent = b.querySelector(".cam-name").textContent;
+  big.src = camSrc(b.dataset.id, 960, 8);
+  $("camModal").hidden = false;
+});
+const camClose = () => { $("camBig").removeAttribute("src"); $("camModal").hidden = true; };
+$("camClose").addEventListener("click", camClose);
+$("camModal").addEventListener("click", (e) => { if (e.target === $("camModal")) camClose(); });
+// spar båndbredde og CPU når siden ikke vises
+document.addEventListener("visibilitychange", () => {
+  document.querySelectorAll("#camGrid img").forEach((img) => (document.hidden ? camStop(img) : camStart(img)));
+  if (document.hidden) camClose();
 });
 
 // ---------- enheder

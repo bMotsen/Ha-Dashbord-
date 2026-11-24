@@ -121,6 +121,9 @@ class TuyaDevice:
         return next((c for c in codes if c in self.status), None)
 
 
+CAMERA_CATEGORIES = {"sp", "dghsxj", "sgbj"}
+
+
 class TuyaProvider(threading.Thread):
     def __init__(self, cfg: dict, store: Store) -> None:
         super().__init__(name="tuya", daemon=True)
@@ -437,6 +440,8 @@ class TuyaProvider(threading.Thread):
 
         views = []
         for d in sorted(devs, key=sort_key):
+            if d.category in CAMERA_CATEGORIES:
+                continue
             if self._hidden(d):
                 continue
             if d is charger and not self.cfg.get("show_charger_in_devices"):
@@ -446,6 +451,40 @@ class TuyaProvider(threading.Thread):
                                    "updated": iso(utcnow())})
         if charger is not None:
             self.store.set("charger", self.charger_view(charger))
+        self.store.set("cameras", {"demo": False, "items": self.camera_list()})
+
+    # ------------------------------------------------------------------ kameraer
+    def camera_list(self) -> list[dict]:
+        rename = self.cfg.get("rename") or {}
+        out = []
+        for d in self.devices.values():
+            if d.category in CAMERA_CATEGORIES and not self._hidden(d):
+                out.append({"id": d.id, "name": rename.get(d.id) or d.name, "online": d.online})
+        for name in (self.cfg.get("rtsp") or {}):
+            if not any(c["name"] == name or c["id"] == name for c in out):
+                out.append({"id": name, "name": name, "online": True})
+        return sorted(out, key=lambda c: c["name"].lower())
+
+    def stream_url(self, cam_id: str) -> str:
+        """Adresse til livestream: egen RTSP-adresse fra config, ellers fra Tuya-skyen."""
+        rtsp = self.cfg.get("rtsp") or {}
+        dev = self.devices.get(cam_id)
+        for key in (cam_id, dev.name if dev else None, (self.cfg.get("rename") or {}).get(cam_id)):
+            if key and key in rtsp:
+                return rtsp[key]
+        if dev is None:
+            raise KeyError(cam_id)
+        cloud = self._cloud()
+        if cloud is None:
+            raise RuntimeError("Ingen forbindelse til Tuya")
+        last = None
+        for kind in ("HLS", "RTSP"):
+            res = cloud.cloudrequest(f"/v1.0/devices/{cam_id}/stream/actions/allocate", action="POST", post={"type": kind})
+            if isinstance(res, dict) and res.get("success") and (res.get("result") or {}).get("url"):
+                return res["result"]["url"]
+            last = res
+        msg = (last or {}).get("msg") if isinstance(last, dict) else str(last)
+        raise RuntimeError(f"Tuya gav ingen videoadresse: {msg}. Tjek at 'IoT Video Live Stream' er tilføjet under Service API i dit Tuya-projekt")
 
     # ------------------------------------------------------------------ control
     def toggle(self, dev_id: str, value: bool | None = None) -> dict:

@@ -5,3 +5,4 @@ PyYAML>=6.0
 tinytuya>=1.15
 carconnectivity>=0.11
 carconnectivity-connector-volkswagen>=0.10
+imageio-ffmpeg>=0.5
