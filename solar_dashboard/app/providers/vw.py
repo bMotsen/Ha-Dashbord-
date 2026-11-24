@@ -81,7 +81,15 @@ class VWProvider(threading.Thread):
             except Exception as err:  # noqa: BLE001
                 LOG.warning("VW: %s", err)
                 cur = self.store.get("car") or {}
-                cur.update({"ok": False, "error": str(err), "source": "vw", "name": self.cfg.get("name", "ID.3")})
+                msg = str(err)
+                low = msg.lower()
+                if "authorization url" in low or "weconnect failure" in low:
+                    msg = "VW's login-server svarer ikke. Prøver igen om lidt"
+                elif "password" in low or "credentials" in low or "unauthorized" in low:
+                    msg = "VW afviste e-mail/kodeord"
+                elif "terms" in low or "consent" in low:
+                    msg = "Godkend VW's nye vilkår i Volkswagen-appen"
+                cur.update({"ok": False, "error": msg, "source": "vw", "name": self.cfg.get("name", "ID.3")})
                 self.store.set("car", cur)
                 self.cc = None if "auth" in str(err).lower() or "login" in str(err).lower() else self.cc
                 wait = 600
