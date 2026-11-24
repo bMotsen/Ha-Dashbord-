@@ -160,6 +160,23 @@ def api_car_target(body: dict = Body(...)) -> dict:
         raise HTTPException(502, str(err)) from err
 
 
+@app.post("/api/car/climate")
+def api_car_climate(body: dict = Body(...)) -> dict:
+    start = bool(body.get("on"))
+    car = store.get("car") or {}
+    try:
+        if car.get("demo") and demo is not None:
+            return demo.set_climate(start)
+        if vw is None:
+            raise HTTPException(404, "VW er ikke sat op")
+        return vw.set_climate(start)
+    except HTTPException:
+        raise
+    except Exception as err:  # noqa: BLE001
+        LOG.warning("Kunne ikke styre klima: %s", err)
+        raise HTTPException(502, str(err)) from err
+
+
 @app.get("/api/health")
 def api_health() -> dict:
     return {"ok": True, "threads": {t.name: t.is_alive() for t in threads}}

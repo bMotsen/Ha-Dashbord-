@@ -100,6 +100,19 @@ class VWProvider(threading.Thread):
                 return v
         return vehicles[0] if vehicles else None
 
+    def set_climate(self, start: bool) -> dict:
+        v = self._vehicle()
+        if v is None:
+            raise RuntimeError("Ingen bil fundet")
+        cmd = v.climatization.commands.commands.get("start-stop") if v.climatization.commands else None
+        if cmd is None or not getattr(cmd, "enabled", True):
+            raise RuntimeError("Bilen understøtter ikke fjernstyret klima")
+        cmd.value = "start" if start else "stop"
+        car = self.store.get("car") or {}
+        car["climatization"] = "heating" if start else "off"
+        self.store.set("car", car)
+        return {"on": start}
+
     def set_target(self, level: float) -> dict:
         level = max(50, min(100, int(round(level / 10.0)) * 10))
         v = self._vehicle()

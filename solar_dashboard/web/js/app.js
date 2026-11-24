@@ -450,19 +450,19 @@ function renderCar() {
   const soc = car.soc;
   const target = car.target_soc;
   const eta = car.eta ? new Date(car.eta) : null;
+  const heating = ["heating", "ventilation", "cooling"].includes(car.climatization);
+  const climBtn = `<button class="mini mini-btn ${heating ? "on" : ""}" id="climBtn">${icon(heating ? "flame" : "thermometer-sun")}<b>${heating ? "Varmer" : "Varm op"}</b><span>${heating ? "Tryk for at stoppe" : "Kabine"}</span></button>`;
   let minis;
   if (charging) {
     minis = [
       ["zap", carW ? `${kW(carW)} kW` : "–", "Ladeeffekt"],
       ["clock", eta ? hhmm(eta) : "–", "Færdig ca."],
-      ["plug-zap", ch.session_kwh != null ? `${num(ch.session_kwh, 1)} kWh` : "–", "Denne opladning"],
     ];
   } else {
     const cw = pr.cheapest;
     minis = [
       ["plug", car.plug === "connected" ? "I stik" : car.plug === "disconnected" ? "Ikke i stik" : CHARGER_STATE[ch.state] || "–", "Stik"],
       ["leaf", cw ? `${hhmm(new Date(cw.start))}–${hhmm(new Date(cw.end))}` : "–", "Billigst at lade"],
-      ["gauge", car.odometer_km != null ? `${num(car.odometer_km, 0)} km` : "–", "Kilometer"],
     ];
   }
   if (dragging) return;
@@ -478,9 +478,28 @@ function renderCar() {
       <i style="width:${Math.max(0, Math.min(100, soc ?? 0))}%"></i>
       ${target ? `<div class="target" id="carTarget" style="left:${target}%"><span>Mål ${num(target, 0)} %</span></div>` : ""}
     </div>
-    <div class="car-mini">${minis.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>`);
+    <div class="car-mini">${minis.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}${car.ok !== false ? climBtn : ""}</div>`);
   $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
 }
+
+// ---------- klima-knap
+$("carBody").addEventListener("click", async (e) => {
+  const b = e.target.closest("#climBtn");
+  if (!b || b.disabled) return;
+  const turnOn = !b.classList.contains("on");
+  b.disabled = true;
+  b.classList.toggle("on", turnOn);
+  try {
+    const r = await fetch("api/car/climate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: turnOn }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `HTTP ${r.status}`);
+    if (S?.car) S.car.climatization = turnOn ? "heating" : "off";
+    toast(turnOn ? "Opvarmning af kabinen startet" : "Opvarmning stoppet");
+  } catch (err) {
+    toast(`Kunne ikke styre klimaet: ${err.message}`);
+  } finally {
+    renderCar();
+  }
+});
 
 // ---------- træk i ladegrænsen
 let dragging = false;

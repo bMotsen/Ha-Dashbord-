@@ -551,3 +551,10 @@ body.lite .flow-anim { filter: none; }
 
 .car-bar .target::before { content: ""; position: absolute; left: -1.1rem; right: -1.1rem; top: -.5rem; bottom: -.5rem; }
 .car-bar .target::after { content: ""; position: absolute; left: 50%; top: 50%; width: 1.15rem; height: 1.15rem; margin: -.575rem 0 0 -.575rem; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25), 0 2px 8px rgba(0,0,0,.4); }
+
+.mini-btn { font: inherit; color: #fff; cursor: pointer; border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .14); transition: background .3s, transform .15s; }
+.mini-btn:active { transform: scale(.95); }
+.mini-btn .ic { color: #ffd08a; }
+.mini-btn.on { background: linear-gradient(160deg, #ff9a3d, #e8581c); border-color: rgba(255, 255, 255, .5); box-shadow: 0 0 18px rgba(255, 140, 50, .45); }
+.mini-btn.on .ic, .mini-btn.on span { color: #fff; }
+.mini-btn:disabled { opacity: .6; }

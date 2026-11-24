@@ -47,6 +47,7 @@ class DemoProvider(threading.Thread):
         self.last: dict = {}
         self.devices = [dict(d) for d in DEMO_DEVICES]
         self.charger_enabled = True
+        self.climate = False
 
     def stop(self) -> None:
         self._stop.set()
@@ -134,7 +135,7 @@ class DemoProvider(threading.Thread):
                 "charge_type": "ac" if charging else "off", "plug": "connected", "plug_lock": "locked",
                 "target_soc": self.car_target,
                 "eta": (now + timedelta(hours=remaining_h)).isoformat() if remaining_h else None,
-                "odometer_km": 24873, "outside_temp": 9.5, "climatization": "off", "vehicle_state": "parked",
+                "odometer_km": 24873, "outside_temp": 9.5, "climatization": "heating" if self.climate else "off", "vehicle_state": "parked",
                 "battery_capacity_kwh": CAR_CAP,
             })
         if "devices" in self.parts:
@@ -164,6 +165,11 @@ class DemoProvider(threading.Thread):
             self._stop.wait(3)
 
     # ------------------------------------------------------------------ control
+    def set_climate(self, start: bool) -> dict:
+        self.climate = bool(start)
+        self.publish(datetime.now(self.tz))
+        return {"on": self.climate}
+
     def set_target(self, level: float) -> dict:
         self.car_target = max(50, min(100, int(round(level / 10.0)) * 10))
         self.publish(datetime.now(self.tz))
