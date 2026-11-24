@@ -80,6 +80,8 @@ class VWProvider(threading.Thread):
                 self.store.set("car", self.parse())
             except Exception as err:  # noqa: BLE001
                 LOG.warning("VW: %s", err)
+                if "authorization url" in str(err).lower():
+                    self._diagnose()
                 cur = self.store.get("car") or {}
                 msg = str(err)
                 low = msg.lower()
@@ -94,6 +96,18 @@ class VWProvider(threading.Thread):
                 self.cc = None if "auth" in str(err).lower() or "login" in str(err).lower() else self.cc
                 wait = 600
             self._stop.wait(wait)
+
+    def _diagnose(self) -> None:
+        """Log hvad VW's login-server faktisk svarer (hjælper når login fejler)."""
+        try:
+            import requests
+
+            url = "https://emea.bff.cariad.digital/user-login/v1/authorize?redirect_uri=weconnect%3A%2F%2Fauthenticated&nonce=x"
+            r = requests.get(url, allow_redirects=False, timeout=15)
+            LOG.warning("VW-diagnose: HTTP %s fra login-serveren · server=%s · svar=%r", r.status_code,
+                        r.headers.get("Server") or r.headers.get("Via"), r.text[:200])
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("VW-diagnose: kan slet ikke nå login-serveren (%s) – tjek internet/DNS i Home Assistant", e)
 
     def _vehicle(self):
         garage = self.cc.get_garage() if self.cc else None

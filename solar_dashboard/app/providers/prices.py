@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import time
 import threading
 from datetime import date, datetime, timedelta
 from statistics import mean
@@ -198,7 +199,11 @@ class PriceProvider(threading.Thread):
         if chargetype:
             flt["ChargeType"] = [chargetype]
         params = {"filter": json.dumps(flt), "sort": "ValidFrom DESC", "limit": "200"}
-        r = self.http.get(f"{EDS}/DatahubPricelist", params=params)
+        for attempt in range(4):
+            r = self.http.get(f"{EDS}/DatahubPricelist", params=params)
+            if r.status_code != 429:
+                break
+            time.sleep(4 * (attempt + 1))
         r.raise_for_status()
         return r.json().get("records") or []
 

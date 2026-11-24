@@ -145,17 +145,28 @@ class TuyaProvider(threading.Thread):
         if self.cloud is None and self.cfg.get("api_key") and self.cfg.get("api_secret"):
             import tinytuya
 
-            self.cloud = tinytuya.Cloud(
-                apiRegion=self.cfg.get("region", "eu"),
-                apiKey=self.cfg["api_key"],
-                apiSecret=self.cfg["api_secret"],
-                apiDeviceID=self.cfg.get("api_device_id") or None,
-                configFile=str(DATA_DIR / "tinytuya.json"),
-            )
-            if getattr(self.cloud, "error", None):
-                err = self.cloud.error
-                self.cloud = None
-                raise RuntimeError(f"Tuya cloud login fejlede: {err}")
+            first = self.cfg.get("region", "eu")
+            regions = [first] + [r for r in ("eu", "eu-w", "us", "us-e", "in", "cn") if r != first]
+            err = None
+            for region in regions:
+                cloud = tinytuya.Cloud(
+                    apiRegion=region,
+                    apiKey=str(self.cfg["api_key"]).strip(),
+                    apiSecret=str(self.cfg["api_secret"]).strip(),
+                    apiDeviceID=(str(self.cfg.get("api_device_id") or "").strip() or None),
+                    configFile=str(DATA_DIR / "tinytuya.json"),
+                )
+                err = getattr(cloud, "error", None)
+                if not err:
+                    if region != first:
+                        LOG.info("Tuya: dit projekt ligger i datacenter '%s'", region)
+                    self.cloud = cloud
+                    break
+                if "911" not in str(err) and "clientId" not in str(err) and "sign" not in str(err).lower():
+                    break  # anden fejl end forkert datacenter/nøgle - ingen grund til at prøve flere
+            if self.cloud is None:
+                msg = "Tuya: Access ID/Secret blev afvist i alle datacentre – kopiér dem igen fra iot.tuya.com"
+                raise RuntimeError(f"{msg} ({err})")
         return self.cloud
 
     def _load_device_list(self) -> None:
