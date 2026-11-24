@@ -100,6 +100,20 @@ class VWProvider(threading.Thread):
                 return v
         return vehicles[0] if vehicles else None
 
+    def set_target(self, level: float) -> dict:
+        level = max(50, min(100, int(round(level / 10.0)) * 10))
+        v = self._vehicle()
+        if v is None:
+            raise RuntimeError("Ingen bil fundet")
+        tl = v.charging.settings.target_level
+        if not getattr(tl, "enabled", False):
+            raise RuntimeError("Bilen understøtter ikke at ændre ladegrænsen")
+        tl.set_value(float(level))
+        car = self.store.get("car") or {}
+        car["target_soc"] = level
+        self.store.set("car", car)
+        return {"target_soc": level}
+
     def parse(self) -> dict:
         v = self._vehicle()
         if v is None:

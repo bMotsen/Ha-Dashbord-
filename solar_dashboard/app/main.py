@@ -140,6 +140,26 @@ def api_charger(body: dict | None = Body(default=None)) -> dict:
     return _toggle(charger["id"], value)
 
 
+@app.post("/api/car/target")
+def api_car_target(body: dict = Body(...)) -> dict:
+    try:
+        level = float(body.get("level"))
+    except (TypeError, ValueError) as err:
+        raise HTTPException(400, "level mangler") from err
+    car = store.get("car") or {}
+    try:
+        if car.get("demo") and demo is not None:
+            return demo.set_target(level)
+        if vw is None:
+            raise HTTPException(404, "VW er ikke sat op")
+        return vw.set_target(level)
+    except HTTPException:
+        raise
+    except Exception as err:  # noqa: BLE001
+        LOG.warning("Kunne ikke sætte ladegrænse: %s", err)
+        raise HTTPException(502, str(err)) from err
+
+
 @app.get("/api/health")
 def api_health() -> dict:
     return {"ok": True, "threads": {t.name: t.is_alive() for t in threads}}

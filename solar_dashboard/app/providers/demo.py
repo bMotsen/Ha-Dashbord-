@@ -164,6 +164,11 @@ class DemoProvider(threading.Thread):
             self._stop.wait(3)
 
     # ------------------------------------------------------------------ control
+    def set_target(self, level: float) -> dict:
+        self.car_target = max(50, min(100, int(round(level / 10.0)) * 10))
+        self.publish(datetime.now(self.tz))
+        return {"target_soc": self.car_target}
+
     def toggle(self, dev_id: str, value: bool | None = None) -> dict:
         if dev_id == "demo-lader":
             self.charger_enabled = (not self.charger_enabled) if value is None else bool(value)

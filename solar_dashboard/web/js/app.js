@@ -465,6 +465,7 @@ function renderCar() {
       ["gauge", car.odometer_km != null ? `${num(car.odometer_km, 0)} km` : "–", "Kilometer"],
     ];
   }
+  if (dragging) return;
   setHTML($("carBody"), `
     <div class="car-main">
       <div>
@@ -475,11 +476,47 @@ function renderCar() {
     </div>
     <div class="car-bar ${charging ? "charging" : ""}">
       <i style="width:${Math.max(0, Math.min(100, soc ?? 0))}%"></i>
-      ${target ? `<div class="target" style="left:${target}%"><span>Mål ${num(target, 0)} %</span></div>` : ""}
+      ${target ? `<div class="target" id="carTarget" style="left:${target}%"><span>Mål ${num(target, 0)} %</span></div>` : ""}
     </div>
     <div class="car-mini">${minis.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>`);
   $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
 }
+
+// ---------- træk i ladegrænsen
+let dragging = false;
+$("carBody").addEventListener("pointerdown", (e) => {
+  const t = e.target.closest("#carTarget");
+  if (!t) return;
+  e.preventDefault();
+  dragging = true;
+  const bar = t.parentElement, rect = bar.getBoundingClientRect();
+  let val = parseFloat(t.style.left);
+  const move = (ev) => {
+    const raw = ((ev.clientX - rect.left) / rect.width) * 100;
+    val = Math.max(50, Math.min(100, Math.round(raw / 10) * 10));
+    t.style.left = val + "%";
+    t.querySelector("span").textContent = `Mål ${val} %`;
+  };
+  const up = async () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    try {
+      const r = await fetch("api/car/target", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ level: val }) });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `HTTP ${r.status}`);
+      if (S?.car) S.car.target_soc = val;
+      toast(`Bilen lader nu til ${val} %`);
+    } catch (err) {
+      toast(`Kunne ikke ændre ladegrænsen: ${err.message}`);
+    } finally {
+      dragging = false;
+      renderCar();
+    }
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+});
 
 // ---------- enheder
 const DEV_COLOR = { lightbulb: "#f59e0b", "lamp-ceiling": "#f59e0b", "lamp-floor": "#f59e0b", lamp: "#f59e0b", sun: "#f59e0b",
