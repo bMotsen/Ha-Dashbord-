@@ -243,6 +243,9 @@ function renderFlow() {
   tag.className = "tag " + (so.demo ? "demo" : so.ok === false ? "err" : "green");
   tag.innerHTML = so.demo ? "Demo" : so.ok === false ? `${icon("wifi-off")} Ingen forbindelse` : `<span class="dot pulse"></span> Live`;
 
+  const msg = $("flowMsg");
+  msg.hidden = !(so.ok === false && so.error);
+  if (!msg.hidden) msg.textContent = so.error;
   const g = so.grid_w, b = so.battery_w;
   $("v-sol").textContent = `${kW(so.pv_w)} kW`;
   $("v-net").textContent = `${kW(g)} kW`;

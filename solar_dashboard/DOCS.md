@@ -10,7 +10,7 @@ Felter du lader stå tomme, vises med demo-data.
 
 | Felt | Hvad skal stå der |
 |---|---|
-| Solplanet dongle IP | Donglens IP-adresse fra din router, fx `192.168.1.50` |
+| Solplanet dongle IP | Lad feltet stå tomt, så findes donglen automatisk. Ellers donglens IP, fx `192.168.1.50` |
 | Batteriets størrelse | fx `10` (kWh) |
 | Prisområde | `DK1` (Jylland/Fyn) eller `DK2` (Sjælland/øerne) |
 | Netselskab | Dit netselskab. Har du et andet, vælg `andet` (se nedenfor) |

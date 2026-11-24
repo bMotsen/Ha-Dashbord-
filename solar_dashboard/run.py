@@ -82,8 +82,8 @@ def main() -> None:
         "timezone": ha.get("time_zone") or "Europe/Copenhagen",
         "demo_when_disabled": bool(opt.get("demo_when_disabled", True)),
         "solplanet": {
-            "enabled": bool(s("solplanet_host")),
-            "host": s("solplanet_host") or "",
+            "enabled": (s("solplanet_host") or "").lower() != "demo",
+            "host": s("solplanet_host") or "auto",
             "battery_capacity_kwh": opt.get("battery_capacity_kwh"),
         },
         "prices": {
@@ -121,7 +121,7 @@ def main() -> None:
     out.write_text(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
     os.chmod(out, 0o600)
 
-    live = [n for n, on in (("Solplanet", cfg["solplanet"]["enabled"]), ("VW", cfg["vw"]["enabled"]),
+    live = [n for n, on in ((f"Solplanet ({cfg['solplanet']['host']})", cfg["solplanet"]["enabled"]), ("VW", cfg["vw"]["enabled"]),
                             ("Tuya", cfg["tuya"]["enabled"]), ("vejr", cfg["weather"]["latitude"] is not None)) if on]
     log(f"Live: {', '.join(live) or 'intet endnu (demo-data)'} · elpris {cfg['prices']['area']}")
     log(f"Dashboard på port {PORT} – åbn 'Energi' i sidepanelet eller http://<home-assistant-ip>:{PORT}/?kiosk=1")

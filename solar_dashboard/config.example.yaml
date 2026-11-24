@@ -21,7 +21,7 @@ demo: false
 # ---------------------------------------------------------------------------
 solplanet:
   enabled: false
-  host: 192.168.1.50          # donglens IP-adresse (se din router eller Solplanet-appen)
+  host: auto                  # auto = find donglen selv, eller skriv IP-adressen, fx 192.168.1.50
   scheme: auto                # auto / http / https
   battery_capacity_kwh: 10    # bruges til "fuld om / tom om"
   # Normalt behøver du ikke røre ved resten:

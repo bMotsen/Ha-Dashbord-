@@ -12,15 +12,20 @@ Kør `python tools/solplanet_probe.py <ip>` for at se de rå data fra netop din 
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
+import math
+import socket
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import httpx
 
+from ..config import DATA_DIR
 from ..energy import EnergyTracker
-from ..store import Store, iso, utcnow
+from ..store import Store, iso, load_json, save_json, utcnow
 
 LOG = logging.getLogger(__name__)
 
@@ -38,12 +43,63 @@ def _num(d: dict, key: str, scale: float = 1.0) -> float | None:
         return None
 
 
+def _local_networks() -> list[ipaddress.IPv4Network]:
+    """De lokale /24-net Pi'en/Home Assistant sidder på (ikke Docker/HA-interne net)."""
+    ips: set[str] = set()
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))  # sender intet - finder bare standard-netkortet
+        ips.add(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ips.add(info[4][0])
+    except OSError:
+        pass
+    nets = []
+    for ip in ips:
+        if ip.startswith(("127.", "172.17.", "172.30.", "169.254.")):
+            continue
+        net = ipaddress.ip_network(f"{ip}/24", strict=False)
+        if net not in nets:
+            nets.append(net)
+    return nets
+
+
+def discover_dongle(timeout: float = 1.2) -> str | None:
+    """Find Solplanet-donglen på det lokale netværk (tager ca. 10 sek)."""
+    http = httpx.Client(timeout=timeout, verify=False, trust_env=False)  # LAN: aldrig via proxy
+
+    def probe(ip: str) -> str | None:
+        for url in (f"http://{ip}:8484/getdev.cgi?device=2", f"https://{ip}/getdev.cgi?device=2"):
+            try:
+                r = http.get(url)
+                if r.status_code == 200 and '"inv"' in r.text:
+                    return ip
+            except Exception:  # noqa: BLE001
+                pass
+        return None
+
+    for net in _local_networks():
+        LOG.info("Solplanet: søger efter donglen på %s ...", net)
+        with ThreadPoolExecutor(max_workers=64) as pool:
+            for found in pool.map(probe, [str(h) for h in net.hosts()]):
+                if found:
+                    LOG.info("Solplanet: fandt donglen på %s", found)
+                    return found
+    return None
+
+
 class SolplanetClient:
     def __init__(self, cfg: dict) -> None:
         self.cfg = cfg
-        self.host = cfg["host"]
+        self.auto = str(cfg.get("host") or "auto").strip().lower() == "auto"
+        self.host = "" if self.auto else str(cfg["host"]).strip()
+        self.last_discovery = 0.0
         self.base: str | None = None
-        self.http = httpx.Client(timeout=8.0, verify=bool(cfg.get("verify_tls")))
+        self.http = httpx.Client(timeout=8.0, verify=bool(cfg.get("verify_tls")), trust_env=False)
         self.inverter_sn: str = cfg.get("inverter_sn") or ""
         self.dongle_sn: str = ""
         self.meter_sn: str | None = cfg.get("meter_sn") or None
@@ -67,7 +123,25 @@ class SolplanetClient:
             raise ValueError(f"Uventet svar fra {endpoint}: {txt[:80]!r}")
         return r.json()
 
+    def _resolve_host(self) -> None:
+        """Ved host: auto - brug sidst fundne adresse, ellers søg på netværket (højst hvert 10. min)."""
+        if not self.auto or self.host:
+            return
+        cache = load_json(DATA_DIR / "solplanet_host.json", {})
+        if cache.get("host"):
+            self.host = cache["host"]
+            return
+        if time.time() - self.last_discovery < 600 and self.last_discovery:
+            raise ConnectionError("Fandt ingen Solplanet-dongle – søger igen om lidt")
+        self.last_discovery = time.time()
+        found = discover_dongle()
+        if not found:
+            raise ConnectionError("Fandt ingen Solplanet-dongle på netværket. Skriv dens IP-adresse i Konfiguration.")
+        self.host = found
+        save_json(DATA_DIR / "solplanet_host.json", {"host": found})
+
     def connect(self) -> None:
+        self._resolve_host()
         last_err: Exception | None = None
         for base in self._candidates():
             self.base = base
@@ -89,7 +163,11 @@ class SolplanetClient:
                 last_err = err
                 LOG.debug("Solplanet: %s svarede ikke: %s", base, err)
         self.base = None
-        raise ConnectionError(f"Kan ikke nå Solplanet-dongle på {self.host}: {last_err}")
+        bad = self.host
+        if self.auto:  # donglen kan have fået ny IP - søg igen næste gang
+            self.host = ""
+            save_json(DATA_DIR / "solplanet_host.json", {})
+        raise ConnectionError(f"Kan ikke nå Solplanet-dongle på {bad}: {last_err}")
 
     def _device_data(self, device: int, sn_attr: str) -> dict:
         """Hent data for meter/batteri. SN er ikke ens på alle firmwares, så vi prøver flere."""
@@ -124,6 +202,11 @@ class SolplanetProvider(threading.Thread):
         self.tracker = tracker
         self.client = SolplanetClient(cfg)
         self._stop = threading.Event()
+        # skala for etdpv (dagens PV) - 0,1 eller 0,01 kWh afhængigt af firmware; findes automatisk
+        self.pv_scale_state = load_json(DATA_DIR / "solplanet_scale.json", {})
+        self._pv_int = 0.0
+        self._pv_anchor: tuple[float, float] | None = None
+        self._last_t: float | None = None
 
     def stop(self) -> None:
         self._stop.set()
@@ -144,6 +227,36 @@ class SolplanetProvider(threading.Thread):
                 self.store.set("solar", cur)
                 backoff = min(backoff * 2, 120)
             self._stop.wait(backoff)
+
+    # ------------------------------------------------------------------ PV i dag
+    def _pv_today(self, raw: float, pv_w: float, etd_kwh: float | None = None) -> float | None:
+        """etdpv er i 0,1 kWh på nogle firmwares og 0,01 kWh på andre. Find ud af hvilken ved at
+        sammenligne med inverterens dagstæller (etd) eller med den målte effekt over tid.
+        Returnerer None indtil skalaen er sikker (så integreres effekten i stedet)."""
+        now = time.time()
+        if self._last_t is not None and 0 < now - self._last_t < 120:
+            self._pv_int += pv_w * (now - self._last_t) / 3_600_000
+        self._last_t = now
+        scale = self.pv_scale_state.get("scale")
+        if not scale and etd_kwh and etd_kwh >= 0.5 and raw > 0:
+            best = min((0.1, 0.01), key=lambda s: abs(math.log(raw * s / etd_kwh)))
+            if abs(math.log(raw * best / etd_kwh)) < math.log(3):
+                scale = best
+                self.pv_scale_state = {"scale": scale}
+                save_json(DATA_DIR / "solplanet_scale.json", self.pv_scale_state)
+                LOG.info("Solplanet: etdpv-skala fundet via etd: %s kWh", scale)
+        if not scale:
+            if self._pv_anchor is None or raw < self._pv_anchor[0]:
+                self._pv_anchor = (raw, self._pv_int)
+            d_raw, d_kwh = raw - self._pv_anchor[0], self._pv_int - self._pv_anchor[1]
+            if d_kwh >= 0.4 and d_raw > 0:
+                ratio = d_raw / d_kwh
+                scale = 0.1 if 4 < ratio < 25 else 0.01 if 40 < ratio < 250 else None
+                if scale:
+                    self.pv_scale_state = {"scale": scale}
+                    save_json(DATA_DIR / "solplanet_scale.json", self.pv_scale_state)
+                    LOG.info("Solplanet: etdpv-skala fundet: %s kWh", scale)
+        return raw * scale if scale else None
 
     # ------------------------------------------------------------------ parsing
     def parse(self, raw: dict[str, dict]) -> dict:
@@ -203,6 +316,10 @@ class SolplanetProvider(threading.Thread):
         }
         if not bat and _num(inv, "etd") is not None:
             today["pv"] = _num(inv, "etd", 0.1)  # ren solcelle-inverter: etd = dagens produktion
+        elif _num(bat, "etdpv") is not None:
+            v = self._pv_today(_num(bat, "etdpv"), pv, _num(inv, "etd", 0.1))
+            if v is not None:
+                today["pv"] = v
         totals = {
             "import": _num(meter, "iet", 0.1),
             "export": _num(meter, "oet", 0.1),

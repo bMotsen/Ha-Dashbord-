@@ -59,6 +59,7 @@ def save_json(path: Path, data: Any) -> None:
     """Atomisk skrivning så en strømafbrydelse ikke efterlader en halv fil."""
     tmp = path.with_suffix(path.suffix + ".tmp")
     try:
+        path.parent.mkdir(parents=True, exist_ok=True)
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, default=str)
         os.replace(tmp, path)

@@ -1,7 +1,7 @@
 configuration:
   solplanet_host:
     name: Solplanet dongle IP
-    description: IP-adressen på Solplanet WiFi/LAN-donglen, fx 192.168.1.50. Tom = demo-data.
+    description: Tom = find donglen automatisk på netværket. Eller skriv dens IP, fx 192.168.1.50. Skriv demo for demo-data.
   battery_capacity_kwh:
     name: Batteriets størrelse (kWh)
     description: Bruges til "fuld om / tom om".

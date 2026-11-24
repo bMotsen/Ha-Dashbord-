@@ -1,7 +1,7 @@
 configuration:
   solplanet_host:
     name: Solplanet dongle IP
-    description: IP address of the Solplanet WiFi/LAN dongle. Empty = demo data.
+    description: Empty = find the dongle automatically. Or enter its IP. Enter demo for demo data.
   battery_capacity_kwh:
     name: Battery capacity (kWh)
   price_area:

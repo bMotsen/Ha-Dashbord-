@@ -252,6 +252,12 @@ body.night .app { filter: brightness(.55) saturate(.8); }
 .flow-anim.rev { animation-direction: reverse; }
 @keyframes flowDash { to { stroke-dashoffset: -15.1; } }
 
+.flow-msg {
+  position: absolute; left: var(--pad); right: var(--pad); bottom: var(--pad);
+  padding: .55rem .8rem; border-radius: 1rem; font-size: .8rem; line-height: 1.3; text-align: center;
+  background: rgba(255, 107, 107, .18); border: 1px solid rgba(255, 107, 107, .35); color: #ffe1e1;
+}
+.flow-msg[hidden] { display: none; }
 .node {
   position: absolute; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: .3rem;
