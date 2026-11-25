@@ -529,7 +529,7 @@ function renderCameras() {
     grid.innerHTML = `<div class="empty">Ingen kameraer fundet i Tuya.<br>Tilføj dem i Smart Life-appen.</div>`;
     return;
   }
-  const shown = items.slice(0, 4);
+  const shown = items.slice(0, 6);
   grid.className = "cam-grid n" + shown.length;
   grid.innerHTML = shown.map((c) => `<button class="cam" data-id="${esc(c.id)}" aria-label="${esc(c.name)}">
       <img data-id="${esc(c.id)}" alt="" draggable="false"><div class="cam-off">${icon("cctv")}<span>Henter …</span></div>

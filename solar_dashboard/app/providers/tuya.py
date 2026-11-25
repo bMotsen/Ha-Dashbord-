@@ -471,7 +471,9 @@ class TuyaProvider(threading.Thread):
         for name in (self.cfg.get("rtsp") or {}):
             if not any(c["name"] == name or c["id"] == name for c in out):
                 out.append({"id": name, "name": name, "online": True})
-        return sorted(out, key=lambda c: c["name"].lower())
+        rtsp = self.cfg.get("rtsp") or {}
+        # egne RTSP-kameraer (fx O-KAM) først, derefter Tuya-kameraer
+        return sorted(out, key=lambda c: (0 if (c["name"] in rtsp or c["id"] in rtsp) else 1, c["name"].lower()))
 
     def stream_url(self, cam_id: str) -> str:
         """Adresse til livestream: egen RTSP-adresse fra config, ellers fra Tuya-skyen."""
