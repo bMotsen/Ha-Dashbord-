@@ -1,5 +1,5 @@
 name: Solar Dashboard
-version: "1.9.0"
+version: "1.9.1"
 slug: solar_dashboard
 description: Glas-dashboard med solceller, batteri, elpris, VW ID.3, Tuya-enheder og vejr
 arch:

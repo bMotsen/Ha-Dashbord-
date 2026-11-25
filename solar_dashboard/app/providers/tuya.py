@@ -486,11 +486,14 @@ class TuyaProvider(threading.Thread):
         if cloud is None:
             raise RuntimeError("Ingen forbindelse til Tuya")
         last = None
-        for kind in ("HLS", "RTSP"):
+        answers = []
+        for kind in ("RTSP", "HLS"):
             res = cloud.cloudrequest(f"/v1.0/devices/{cam_id}/stream/actions/allocate", action="POST", post={"type": kind})
             if isinstance(res, dict) and res.get("success") and (res.get("result") or {}).get("url"):
                 return res["result"]["url"]
+            answers.append(f"{kind}: code={res.get('code') if isinstance(res, dict) else '?'} msg={res.get('msg') if isinstance(res, dict) else res}")
             last = res
+        LOG.warning("Tuya videoadresse for %s afvist: %s", dev.name, " | ".join(answers))
         msg = (last or {}).get("msg") if isinstance(last, dict) else str(last)
         raise RuntimeError(f"Tuya gav ingen videoadresse: {msg}. Tjek at 'IoT Video Live Stream' er tilføjet under Service API i dit Tuya-projekt")
 

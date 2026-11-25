@@ -85,8 +85,9 @@ class VWProvider(threading.Thread):
                 cur = self.store.get("car") or {}
                 msg = str(err)
                 low = msg.lower()
-                if "authorization url" in low or "weconnect failure" in low:
-                    msg = "VW's login-server svarer ikke. Prøver igen om lidt"
+                blocked = "authorization url" in low or "weconnect failure" in low
+                if blocked:
+                    msg = "VW blokerer forbindelsen lige nu (403). Prøver igen om 2 timer"
                 elif "password" in low or "credentials" in low or "unauthorized" in low:
                     msg = "VW afviste e-mail/kodeord"
                 elif "terms" in low or "consent" in low:
@@ -94,7 +95,7 @@ class VWProvider(threading.Thread):
                 cur.update({"ok": False, "error": msg, "source": "vw", "name": self.cfg.get("name", "ID.3")})
                 self.store.set("car", cur)
                 self.cc = None if "auth" in str(err).lower() or "login" in str(err).lower() else self.cc
-                wait = 600
+                wait = 7200 if blocked else 600
             self._stop.wait(wait)
 
     def _diagnose(self) -> None:
