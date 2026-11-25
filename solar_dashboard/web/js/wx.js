@@ -152,7 +152,7 @@ export class WeatherFX {
 
   // fliser og dock som sneen kan lægge sig på
   updateSurfaces() {
-    const els = [...document.querySelectorAll(".tile, .dock")];
+    const els = [...document.querySelectorAll(".tile, .dock, .wx-tile")];
     const old = new Map(this.surfaces.map((s) => [s.key, s]));
     const out = [];
     for (const el of els) {

@@ -115,16 +115,10 @@ function derived() {
 }
 
 // På mobil flyttes vejr-fliden ind blandt de andre fliser, så den får samme bredde
-const mqMobile = window.matchMedia("(max-width: 760px), (max-height: 520px)");
-function placeWx() {
-  const t = $("wxTile");
-  if (mqMobile.matches) document.querySelector(".tiles").prepend(t);
-  else document.querySelector(".top-side.left").appendChild(t);
-}
-mqMobile.addEventListener("change", placeWx);
-placeWx();
+// Vejr-fliden er en almindelig flise i gitteret (toppen er forbeholdt uret og senere knapper)
+document.querySelector(".tiles").prepend($("wxTile"));
 
-// ---------- vejr-flise (øverst til venstre)
+// ---------- vejr-flise
 function renderWxTile() {
   const w = S.weather, t = $("wxTile");
   if (!w || !w.current) { setHTML(t, ""); t.hidden = true; return; }

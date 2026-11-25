@@ -807,3 +807,43 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
   .tiles > .wx-tile .wx-tile-txt { text-align: center; }
   .tiles > .wx-tile .wx-tile-temp { font-size: 4rem; }
 }
+
+/* ===== Tablet/pc: uret står alene øverst, vejret er en flise i gitteret ===== */
+.tiles > .wx-tile { width: 100%; max-width: none; height: auto; align-self: stretch; grid-column: 1 / -1; }
+@media (min-aspect-ratio: 1/1) and (min-width: 761px) and (min-height: 521px) {
+  .top { min-height: 9.2rem; }
+  .tiles { grid-template-rows: minmax(0, .72fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .tiles > .wx-tile { grid-column: 1 / span 4; grid-row: 1; padding: .6rem 1.4rem .6rem 1rem; }
+  .tiles > .wx-tile .wx-tile-ic { width: 6.2rem; height: 6.2rem; }
+  .tiles > .wx-tile .wx-tile-temp { font-size: 4.2rem; }
+  .tiles > .wx-tile .wx-tile-text { font-size: 1.15rem; }
+  .t-cam   { grid-column: 5 / span 8; grid-row: 1; }
+  .t-flow  { grid-column: 1 / span 4; grid-row: 2; }
+  .t-car   { grid-column: 5 / span 4; grid-row: 2; }
+  .t-price { grid-column: 9 / span 4; grid-row: 2; }
+  .t-today { grid-column: 1 / span 4; grid-row: 3; }
+  .t-dev   { grid-column: 5 / span 8; grid-row: 3; }
+  .t-cam .cam-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; grid-auto-rows: minmax(0, 1fr); }
+  .t-cam .cam { aspect-ratio: auto; }
+  .t-dev .dev-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .t-price .bars { min-height: 3.2rem; }
+}
+
+@media (min-aspect-ratio: 1/1) and (min-width: 761px) and (min-height: 521px) {
+  :root { font-size: clamp(10px, min(1.08vw, 1.6vh), 22px); }
+  .tiles { grid-template-rows: minmax(0, .62fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .top { min-height: 8.6rem; }
+}
+@media (min-aspect-ratio: 1/1) and (min-width: 761px) and (min-height: 521px) {
+  .t-car .car-photo img { max-height: 5.6rem; margin-top: 1.2rem; }
+  .t-car .car-img { min-height: 3rem; }
+  .t-car .car-main { margin-bottom: .8rem; }
+}
+@media (min-aspect-ratio: 1/1) and (min-width: 761px) and (min-height: 521px) {
+  .t-car .car-photo img { max-height: 4.4rem; margin-top: 0; }
+  .t-car .car-main { min-height: 4.8rem; flex: none; margin-bottom: .9rem; }
+  .t-car .car-soc { font-size: 2.6rem; }
+  .t-car .car-range { font-size: .8rem; }
+  .t-car .car-bar { margin: .6rem 0 .2rem; }
+  .t-car .tile-head { margin-bottom: .2rem; }
+}
