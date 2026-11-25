@@ -412,6 +412,27 @@ function renderCar() {
     ];
   }
   if (dragging) return;
+  // VW er nede (eller demo), men der er en rigtig Tuya-lader: vis det laderen kan fortælle
+  if (ch.ok && !ch.demo && (!car.ok || car.demo)) {
+    const stateTxt = charging ? "Lader" : (CHARGER_STATE[ch.state] || ch.state || "–");
+    const sub = charging ? `${kW(carW, 1)} kW` : ch.state === "finished" ? "Opladning færdig" : ch.state === "connected" ? "Bilen er i stik" : ch.state === "idle" ? "Ingen bil i stik" : "";
+    const cw = pr.cheapest;
+    const mini = [
+      ["zap", carW ? `${kW(carW)} kW` : "0 kW", "Ladeeffekt"],
+      ["plug-zap", ch.session_kwh != null ? `${num(ch.session_kwh, 1)} kWh` : "–", "Denne opladning"],
+      ch.current_a != null ? ["activity", `${num(ch.current_a, 0)} A`, "Ladestrøm"] : ["leaf", cw ? `${hhmm(new Date(cw.start))}–${hhmm(new Date(cw.end))}` : "–", "Billigst at lade"],
+    ];
+    setHTML($("carBody"), `
+      <div class="car-main">
+        <div><div class="car-soc car-state">${stateTxt}</div><div class="car-range">${sub}</div></div>
+        <div class="car-img">${carSVG(charging)}</div>
+      </div>
+      <div class="car-bar ${charging ? "charging" : ""}"><i style="width:${charging ? 100 : 0}%"></i></div>
+      <div class="car-mini">${mini.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="car-note">Data fra laderen · bilens batteri er ikke tilgængeligt</div>`);
+    $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
+    return;
+  }
   setHTML($("carBody"), `
     <div class="car-main">
       <div>

@@ -766,3 +766,6 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
   .t-dev, .t-cam { min-height: 14rem; }
   .dev-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+.car-state { font-size: 2.3rem; }
+.car-note { font-size: .66rem; color: var(--text-3); text-align: center; margin-top: .35rem; }
