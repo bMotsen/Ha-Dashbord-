@@ -379,16 +379,16 @@ export class WeatherFX {
     if (!m) return;
     const speed = 85;
     m.x -= speed * dt; m.ph += dt * 7;
-    const shovelX = m.x - 34;
+    const shovelX = m.x - 34 * 1.3;
     // skovl sneen væk: ryd kolonnerne under skovlen og saml i en bunke
     for (const s of [dock, bottom]) {
       if (!s) continue;
       const c0 = Math.floor((shovelX - 6 - s.left) / 4), c1 = Math.floor((shovelX + 6 - s.left) / 4);
-      for (let c = c0; c <= c1; c++) if (c >= 0 && c < s.h.length) { if (s === dock) m.pile = Math.min(m.pile + s.h[c] * .35, 16); s.h[c] = 0; }
+      for (let c = c0; c <= c1; c++) if (c >= 0 && c < s.h.length) { if (s === bottom) m.pile = Math.min(m.pile + s.h[c] * .35, 16); s.h[c] = 0; }
     }
     // nogle kolonner bagved holdes rene (snekant ved siden af stien)
-    const baseY = dock.top + 1;
-    this.drawMan(g, m, baseY, t);
+    // står nede på samme niveau som sneen i bunden af skærmen (men tegnes foran nyhedsrullen)
+    this.drawMan(g, m, this.H - 1, t);
     if (m.x < -140) this.man = null;
   }
 
@@ -397,6 +397,7 @@ export class WeatherFX {
     const h = 64;
     g.save();
     g.translate(x, y - bob);
+    g.scale(1.3, 1.3);
     // skygge
     g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(0, bob, 18, 3, 0, 0, Math.PI * 2); g.fill();
     // ben
