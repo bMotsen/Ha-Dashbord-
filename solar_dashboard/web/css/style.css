@@ -792,3 +792,18 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
   .top { min-height: 0; } .wx-tile { width: 100%; height: 7.6rem; } .wx-tile-ic { width: 5.8rem; height: 5.8rem; } .wx-tile-temp { font-size: 3.6rem; }
   .tiles { grid-template-rows: none; } .dock { height: 3.8rem; } .news-item { font-size: 1.05rem; }
 }
+
+/* ===== Mobil: vejr-fliden er en almindelig flise i gitteret ===== */
+@media (max-width: 760px), (max-height: 520px) {
+  .top { gap: 0; }
+  .top-side.left, .top-side.right { display: none !important; }
+  .tiles > .wx-tile { grid-column: auto; order: 0; width: 100%; max-width: none; height: auto; min-height: 7.6rem; align-self: stretch; }
+}
+@media (max-height: 520px) and (min-width: 600px) {
+  .top { justify-content: center; }
+  .top .clock { order: 1; }
+  .tiles > .wx-tile { min-height: 12rem; flex-direction: column; justify-content: center; text-align: center; gap: .2rem; }
+  .tiles > .wx-tile .wx-tile-ic { width: 6rem; height: 6rem; }
+  .tiles > .wx-tile .wx-tile-txt { text-align: center; }
+  .tiles > .wx-tile .wx-tile-temp { font-size: 4rem; }
+}

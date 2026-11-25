@@ -114,6 +114,16 @@ function derived() {
   return { so, ch, car, carW, house, charging: carW > 100 || !!car.charging || ch.state === "charging" };
 }
 
+// På mobil flyttes vejr-fliden ind blandt de andre fliser, så den får samme bredde
+const mqMobile = window.matchMedia("(max-width: 760px), (max-height: 520px)");
+function placeWx() {
+  const t = $("wxTile");
+  if (mqMobile.matches) document.querySelector(".tiles").prepend(t);
+  else document.querySelector(".top-side.left").appendChild(t);
+}
+mqMobile.addEventListener("change", placeWx);
+placeWx();
+
 // ---------- vejr-flise (øverst til venstre)
 function renderWxTile() {
   const w = S.weather, t = $("wxTile");
