@@ -215,6 +215,21 @@ async def api_camera(cam_id: str, w: int = 480, fps: int = 4):
                              headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/diag/camera")
+async def api_diag_camera(ip: str):
+    import ipaddress
+
+    from .diag import scan
+
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError as err:
+        raise HTTPException(400, "Ugyldig IP-adresse") from err
+    if not addr.is_private:
+        raise HTTPException(400, "Kun adresser på dit eget netværk")
+    return await scan(ip)
+
+
 @app.get("/api/health")
 def api_health() -> dict:
     return {"ok": True, "threads": {t.name: t.is_alive() for t in threads}}
