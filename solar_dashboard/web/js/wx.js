@@ -108,6 +108,8 @@ export class WeatherFX {
     this.drops = []; this.streaks = []; this.flakes = []; this.clouds = []; this.stars = [];
     this.surfaces = []; this.flash = 0; this.nextFlash = 0; this.bolt = null;
     this.t = 0; this.lastFront = 0; this.lastBack = 0; this.lastSurf = 0;
+    this.man = null; this.nextMan = 0; this.splashes = []; this.leaves = []; this.motes = []; this.star = null; this.nextStar = 0;
+    this.forceMan = new URLSearchParams(location.search).has("man");
     this.running = false;
     this.resize();
     window.addEventListener("resize", () => this.resize());
@@ -176,7 +178,7 @@ export class WeatherFX {
     this.t = t;
     if (this.mode === "full" && t - this.lastBack > 83) { this.drawBack(t, (t - (this.lastBack || t)) / 1000); this.lastBack = t; }
     if (t - this.lastFront > 30) { this.drawFront(t, dt); this.lastFront = t; }
-    const busy = effect !== "none" || this.surfaces.some((s) => s.h.some((v) => v > 0.05)) || this.drops.length;
+    const busy = effect !== "none" || this.man || this.splashes.length || this.leaves.length || this.surfaces.some((s) => s.h.some((v) => v > 0.05)) || this.drops.length;
     if (busy) requestAnimationFrame((tt) => this.loop(tt));
     else { this.running = false; this.fg.clearRect(0, 0, this.W, this.H); }
   }
@@ -281,6 +283,8 @@ export class WeatherFX {
     // sne
     if (snowy || this.flakes.length) this.drawSnow(g, dt, snowy, k, effect, wind);
     this.drawSnowCover(g, dt, snowy);
+    this.drawExtras(g, dt, t, { effect, rainy, wind, k });
+    this.updateMan(g, dt, t, snowy);
 
     // lyn
     if (effect === "thunder") {
@@ -295,6 +299,129 @@ export class WeatherFX {
         this.flash *= Math.pow(0.02, dt);
       }
     }
+  }
+
+  // ---------------- ekstra stemning: stænk, vindblade, støv i sollys, stjerneskud
+  drawExtras(g, dt, t, { effect, rainy, wind, k }) {
+    const W = this.W, H = this.H, isDay = this.state.isDay;
+    // regnstænk på fliserne
+    if (rainy && this.mode === "full" && this.surfaces.length) {
+      const n = (effect === "drizzle" ? 3 : 9) * k * dt * 30;
+      for (let i = 0; i < n; i++) {
+        const s = this.surfaces[Math.floor(Math.random() * this.surfaces.length)];
+        if (s.key === "bottom") continue;
+        if (this.splashes.length < 60) this.splashes.push({ x: s.left + s.radius + Math.random() * (s.w - 2 * s.radius), y: s.top, age: 0 });
+      }
+    }
+    this.splashes = this.splashes.filter((p) => (p.age += dt) < 0.5);
+    g.lineWidth = 1;
+    for (const p of this.splashes) {
+      const a = 1 - p.age / 0.5, r = 2 + p.age * 16;
+      g.strokeStyle = `rgba(220,240,255,${0.5 * a})`;
+      g.beginPath(); g.ellipse(p.x, p.y, r, r * 0.3, 0, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = `rgba(220,240,255,${0.6 * a})`;
+      g.fillRect(p.x - 3 - p.age * 10, p.y - p.age * 14 + p.age * p.age * 40, 1.5, 1.5);
+      g.fillRect(p.x + 3 + p.age * 10, p.y - p.age * 14 + p.age * p.age * 40, 1.5, 1.5);
+    }
+    // blade der blæser forbi ved hård vind
+    const strong = Math.abs(wind) > 6;
+    if (strong && this.mode === "full") while (this.leaves.length < Math.min(16, Math.abs(wind) * 1.6)) {
+      this.leaves.push({ x: wind > 0 ? -20 : W + 20, y: Math.random() * H, r: 3 + Math.random() * 4, rot: Math.random() * 6, vr: (Math.random() - .5) * 6, vy: -10 + Math.random() * 30, ph: Math.random() * 6 });
+    }
+    for (const l of this.leaves) {
+      const v = (Math.abs(wind) * 22 + 40) * Math.sign(wind || 1);
+      l.x += v * dt; l.y += (l.vy + Math.sin(t / 400 + l.ph) * 30) * dt; l.rot += l.vr * dt;
+      g.save(); g.translate(l.x, l.y); g.rotate(l.rot); g.fillStyle = "rgba(143,184,174,.6)";
+      g.beginPath(); g.ellipse(0, 0, l.r * 1.7, l.r, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    }
+    this.leaves = this.leaves.filter((l) => l.x > -40 && l.x < W + 40 && l.y > -20 && l.y < H + 20 && strong);
+    // støvkorn i sollys / lyse partikler ved klart vejr
+    if ((effect === "clear" || effect === "none") && this.mode === "full") {
+      while (this.motes.length < 34) this.motes.push({ x: Math.random() * W, y: Math.random() * H, r: .6 + Math.random() * 1.6, ph: Math.random() * 6, sp: 4 + Math.random() * 10 });
+      for (const m of this.motes) {
+        m.x += (m.sp + wind * 2) * dt; m.y += Math.sin(t / 1500 + m.ph) * 6 * dt - 2 * dt;
+        if (m.x > W + 5) m.x = -5; if (m.y < -5) m.y = H + 5;
+        const a = (isDay ? .35 : .18) * (0.5 + 0.5 * Math.sin(t / 900 + m.ph));
+        g.fillStyle = isDay ? `rgba(255,236,170,${a})` : `rgba(180,220,210,${a})`;
+        g.beginPath(); g.arc(m.x, m.y, m.r, 0, Math.PI * 2); g.fill();
+      }
+    } else this.motes = [];
+    // stjerneskud en gang imellem på en klar nat
+    if (effect === "clear" && !isDay && this.mode === "full") {
+      if (!this.star && t > this.nextStar) {
+        this.star = { x: Math.random() * W * .7 + W * .2, y: Math.random() * H * .3, age: 0 };
+        this.nextStar = t + 12000 + Math.random() * 25000;
+      }
+      if (this.star) {
+        const s = this.star; s.age += dt;
+        const px = s.x - s.age * 700, py = s.y + s.age * 330, a = Math.max(0, 1 - s.age / .9);
+        const grd = g.createLinearGradient(px, py, px + 130, py - 61);
+        grd.addColorStop(0, `rgba(255,255,255,${a})`); grd.addColorStop(1, "rgba(255,255,255,0)");
+        g.strokeStyle = grd; g.lineWidth = 2; g.beginPath(); g.moveTo(px, py); g.lineTo(px + 130, py - 61); g.stroke();
+        if (s.age > .9) this.star = null;
+      }
+    } else this.star = null;
+  }
+
+  // ---------------- manden der skovler sne på nyhedsrullen
+  updateMan(g, dt, t, snowy) {
+    const dock = this.surfaces.find((s) => s.key === "dock");
+    const bottom = this.surfaces.find((s) => s.key === "bottom");
+    if (!dock) return;
+    const snow = (s) => s && s.h.some((v) => v > 1.2);
+    if (!this.man && t > this.nextMan && (snow(dock) || snow(bottom) || this.forceMan)) {
+      if (snowy || snow(dock) || snow(bottom)) {
+        this.man = { x: this.W + 50, pile: 0, ph: 0 };
+        this.nextMan = t + (this.forceMan ? 20000 : 60000);
+      }
+    }
+    const m = this.man;
+    if (!m) return;
+    const speed = 85;
+    m.x -= speed * dt; m.ph += dt * 7;
+    const shovelX = m.x - 34;
+    // skovl sneen væk: ryd kolonnerne under skovlen og saml i en bunke
+    for (const s of [dock, bottom]) {
+      if (!s) continue;
+      const c0 = Math.floor((shovelX - 6 - s.left) / 4), c1 = Math.floor((shovelX + 6 - s.left) / 4);
+      for (let c = c0; c <= c1; c++) if (c >= 0 && c < s.h.length) { if (s === dock) m.pile = Math.min(m.pile + s.h[c] * .35, 16); s.h[c] = 0; }
+    }
+    // nogle kolonner bagved holdes rene (snekant ved siden af stien)
+    const baseY = dock.top + 1;
+    this.drawMan(g, m, baseY, t);
+    if (m.x < -140) this.man = null;
+  }
+
+  drawMan(g, m, y, t) {
+    const x = m.x, swing = Math.sin(m.ph), bob = Math.abs(Math.sin(m.ph)) * 1.8;
+    const h = 64;
+    g.save();
+    g.translate(x, y - bob);
+    // skygge
+    g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.ellipse(0, bob, 18, 3, 0, 0, Math.PI * 2); g.fill();
+    // ben
+    g.strokeStyle = "#1b2a36"; g.lineWidth = 6; g.lineCap = "round";
+    g.beginPath(); g.moveTo(-2, -26); g.lineTo(-2 - swing * 9, 0); g.stroke();
+    g.beginPath(); g.moveTo(2, -26); g.lineTo(2 + swing * 9, 0); g.stroke();
+    g.fillStyle = "#0e1820"; g.fillRect(-2 - swing * 9 - 6, -3, 10, 4); g.fillRect(2 + swing * 9 - 6, -3, 10, 4);
+    // krop (vinterjakke)
+    g.fillStyle = "#c2410c"; g.beginPath(); g.roundRect(-10, -h + 14, 21, 28, 7); g.fill();
+    g.fillStyle = "rgba(255,255,255,.25)"; g.fillRect(-10, -h + 30, 21, 3);
+    // hoved og hue
+    g.fillStyle = "#f2c9a0"; g.beginPath(); g.arc(0, -h + 10, 8, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#1e3a5f"; g.beginPath(); g.arc(0, -h + 7, 9, Math.PI, 0); g.fill();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(0, -h - 3, 3.2, 0, Math.PI * 2); g.fill();
+    // arme + skovl foran (mod venstre)
+    g.strokeStyle = "#9a3412"; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(-6, -h + 24); g.lineTo(-24, -20 + swing * 2); g.stroke();
+    g.strokeStyle = "#7c5a3a"; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(2, -h + 22); g.lineTo(-33, -3); g.stroke();       // skaft
+    g.fillStyle = "#94a3b8"; g.beginPath(); g.roundRect(-44, -9, 16, 10, 2); g.fill(); // blad
+    // bunke af sne foran skovlen
+    if (m.pile > .4) {
+      g.fillStyle = "#f4faff"; g.beginPath(); g.ellipse(-50, -2, 6 + m.pile * .9, 3 + m.pile * .6, 0, Math.PI, 0); g.fill();
+    }
+    g.restore();
   }
 
   drawDrops(g, dt, rainy, k, effect) {

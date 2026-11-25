@@ -771,3 +771,24 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
 .car-note { font-size: .66rem; color: var(--text-3); text-align: center; margin-top: .35rem; }
 
 .cam-grid.n5, .cam-grid.n6 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ===== Større vejr-flise, lavere elpris, højere nyhedsrulle ===== */
+.top { min-height: 11.2rem; }
+.wx-tile { width: min(100%, 27rem); height: 9.6rem; padding: .8rem 1.5rem .8rem 1rem; gap: 1.2rem; }
+.wx-tile-ic { width: 7.4rem; height: 7.4rem; }
+.wx-tile-temp { font-size: 4.8rem; }
+.wx-tile-text { font-size: 1.3rem; }
+.wx-tile-sub { font-size: .92rem; }
+.tiles { grid-template-rows: minmax(0, .88fr) minmax(0, 1fr); }
+.t-price .bars { min-height: 2.6rem; margin-top: .45rem; }
+.t-price .price-big { font-size: 2.7rem; }
+.dock { height: 4.3rem; }
+.news-item { font-size: 1.22rem; }
+.news-item .src { font-size: .72rem; }
+.news-item.breaking { color: #ffd0d0; font-weight: 650; }
+.news-item .src.brk { background: #ff2d3d; color: #fff; animation: brkPulse 1.2s ease-in-out infinite; }
+@keyframes brkPulse { 50% { opacity: .55; } }
+@media (max-width: 760px), (max-height: 520px) {
+  .top { min-height: 0; } .wx-tile { width: 100%; height: 7.6rem; } .wx-tile-ic { width: 5.8rem; height: 5.8rem; } .wx-tile-temp { font-size: 3.6rem; }
+  .tiles { grid-template-rows: none; } .dock { height: 3.8rem; } .news-item { font-size: 1.05rem; }
+}

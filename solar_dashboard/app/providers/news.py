@@ -24,12 +24,13 @@ LOG = logging.getLogger(__name__)
 DEFAULT_SOURCES = [
     {"name": "DR", "feeds": ["https://www.dr.dk/nyheder/service/feeds/allenyheder",
                              "https://www.dr.dk/nyheder/service/feeds/regionale/nordjylland"],
-     "pages": ["https://www.dr.dk/nyheder"], "limit": 8},
+     "pages": ["https://www.dr.dk/nyheder"], "limit": 6},
     {"name": "Nordjyske", "feeds": ["https://nordjyske.dk/rss", "https://nordjyske.dk/rss/nyheder",
                                     "https://nordjyske.dk/rss/aalborg"],
-     "pages": ["https://nordjyske.dk/nyheder/aalborg", "https://nordjyske.dk/nyheder"], "limit": 12,
-     "html_path": "/nyheder/"},
+     "pages": ["https://nordjyske.dk/nyheder/aalborg", "https://nordjyske.dk/nyheder"],
+     "html_path": "/nyheder/", "limit": 16},
 ]
+BREAKING_WORDS = ("breaking", "just nu", "nyhedsflash", "nu:", "live:", "ekstra:", "alarm", "evakuer")
 UA = "Mozilla/5.0 (compatible; solar-dashboard/1.0)"
 
 
@@ -154,15 +155,25 @@ class NewsProvider(threading.Thread):
             except Exception as err:  # noqa: BLE001
                 errors.append(str(err))
                 LOG.warning("Nyheder: %s", err)
-        # skift mellem kilderne så begge vises, nyeste først i hver
+        # breaking først, derefter 3 lokale (Nordjyske) for hver 1 fra DR
+        for it in merged:
+            low = it["title"].lower()
+            it["breaking"] = any(w in low for w in BREAKING_WORDS)
         by_src: dict[str, list] = {}
         for it in merged:
             by_src.setdefault(it["src"], []).append(it)
-        mixed = []
-        while any(by_src.values()):
-            for k in list(by_src):
-                if by_src[k]:
-                    mixed.append(by_src[k].pop(0))
+        mixed = [it for it in merged if it["breaking"]]
+        rest = {k: [i for i in v if not i["breaking"]] for k, v in by_src.items()}
+        local = rest.get("Nordjyske", [])
+        other = [i for k, v in rest.items() if k != "Nordjyske" for i in v]
+        while local or other:
+            for _ in range(3):
+                if local:
+                    mixed.append(local.pop(0))
+            if other:
+                mixed.append(other.pop(0))
+            elif not local:
+                break
         return {"ok": bool(mixed), "demo": False, "items": mixed, "error": "; ".join(errors) or None, "updated": iso(utcnow())}
 
 

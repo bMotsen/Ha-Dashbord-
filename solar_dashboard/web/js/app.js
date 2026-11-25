@@ -668,7 +668,7 @@ function renderDock() {
   if (key !== tickerKey || !$("tickerTrack")) {
     tickerKey = key;
     const one = items.length
-      ? items.map((n) => `<a class="news-item" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer"><b class="src ${n.src === "DR" ? "dr" : "nj"}">${esc(n.src)}</b>${esc(n.title)}</a><span class="news-sep">◆</span>`).join("")
+      ? items.map((n) => `<a class="news-item${n.breaking ? " breaking" : ""}" href="${esc(n.url)}" target="_blank" rel="noopener noreferrer">${n.breaking ? '<b class="src brk">Breaking</b>' : ""}<b class="src ${n.src === "DR" ? "dr" : "nj"}">${esc(n.src)}</b>${esc(n.title)}</a><span class="news-sep">◆</span>`).join("")
       : `<span class="news-empty">${S.news?.error ? "Nyheder kunne ikke hentes lige nu" : "Henter nyheder …"}</span>`;
     $("dock").innerHTML = `<div class="ticker"><div class="ticker-track" id="tickerTrack"><div class="tk">${one}</div><div class="tk" aria-hidden="true">${one}</div></div></div>
       <button class="status-dot" id="statusPill" aria-label="Status"></button>`;
