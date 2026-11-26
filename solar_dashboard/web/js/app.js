@@ -433,7 +433,7 @@ function renderCar() {
       </div>
       <div class="car-bar ${charging ? "charging" : ""}"><i style="width:${charging ? 100 : 0}%"></i></div>
       <div class="car-mini">${mini.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>
-      <div class="car-note">Data fra laderen · bilens batteri er ikke tilgængeligt</div>`);
+      <div class="car-note">${ch.duration && charging ? `Ladetid ${esc(ch.duration)} · ` : ""}${ch.temp != null ? `Lader ${num(ch.temp, 0)}° · ` : ""}bilens batteri er ikke tilgængeligt</div>`);
     $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
     return;
   }

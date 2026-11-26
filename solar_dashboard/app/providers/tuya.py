@@ -448,6 +448,62 @@ class TuyaProvider(threading.Thread):
         except Exception as err:  # noqa: BLE001
             return f"fejl: {err}"
 
+    def _feyree(self, dev: TuyaDevice) -> dict | None:
+        """Feyree/lignende ladere: egne koder (DeviceState, DeviceKw, A_Voltage ...)."""
+        st = dev.status
+        if "DeviceState" not in st and "DeviceKw" not in st:
+            return None
+        num = lambda k: float(st[k]) if isinstance(st.get(k), (int, float)) and not isinstance(st.get(k), bool) else None  # noqa: E731
+        raw = str(st.get("DeviceState") or "").lower()
+        kw = num("DeviceKw")
+        power_kw = kw / 10 if kw is not None else None
+        volts = [v / 10 for v in (num("A_Voltage"), num("B_Voltage"), num("C_Voltage")) if v]
+        amps = [a / 10 for a in (num("A_Current"), num("B_Current"), num("C_Current")) if a is not None]
+        if power_kw is None and volts and amps:
+            power_kw = sum(v * a for v, a in zip(volts, amps)) / 1000
+        if raw in ("charing", "charging", "charge", "charge_ing"):
+            state = "charging"
+        elif any(w in raw for w in ("insert", "plug", "connect")):
+            state = "connected"
+        elif "wait" in raw or "ready" in raw:
+            state = "waiting"
+        elif any(w in raw for w in ("end", "finish", "full", "complete", "done")):
+            state = "finished"
+        elif "pause" in raw:
+            state = "paused"
+        elif any(w in raw for w in ("fault", "error")):
+            state = "fault"
+        elif raw in ("free", "idle", "standby", "available", ""):
+            state = "idle"
+        else:
+            state = raw
+        if power_kw is not None and power_kw > 0.3:
+            state = "charging"
+        kwh = num("DeviceKwh")
+        # indstillet ladestrøm: "Max16A" -> Set16A
+        import re
+
+        m = re.search(r"(\d+)", str(st.get("DeviceMaxSetA") or ""))
+        set_a = num(f"Set{m.group(1)}A") if m else None
+        temp = num("DeviceTemp")
+        sw = dev.first(SWITCH_CODES)
+        return {
+            "ok": True, "demo": False, "id": dev.id,
+            "name": (self.cfg.get("rename") or {}).get(dev.id) or dev.name,
+            "online": dev.online, "via": dev.via,
+            "state": state, "raw_state": raw, "charging": state == "charging",
+            "power_kw": round(power_kw, 2) if power_kw is not None else None,
+            "session_kwh": round(kwh / 10, 2) if kwh is not None else None,
+            "current_a": set_a if set_a is not None else (round(sum(amps) / len(amps), 1) if amps else None),
+            "measured_a": [round(a, 1) for a in amps],
+            "volts": [round(v, 1) for v in volts],
+            "temp": round(temp / 10, 1) if temp is not None else None,
+            "duration": st.get("Ctime"),
+            "switch_code": sw, "on": bool(st.get(sw)) if sw else None,
+            "confirm": bool(self.cfg.get("confirm_charger_toggle", True)),
+            "updated": iso(utcnow()),
+        }
+
     def charger_debug(self) -> dict:
         """Rå data fra laderen, så vi kan se hvilke koder den bruger."""
         dev = self._charger()
@@ -473,6 +529,9 @@ class TuyaProvider(threading.Thread):
             unit = dev.unit(pc).lower()
             if v is not None:
                 power_kw = v if unit == "kw" else v / 1000 if unit == "w" or v > 100 else v
+        feyree = self._feyree(dev)
+        if feyree:
+            return feyree
         phases = self._phases(dev)
         phase_kw = sum(p["w"] for p in phases) / 1000 if phases else None
         if phase_kw and (power_kw is None or power_kw < 0.05):
