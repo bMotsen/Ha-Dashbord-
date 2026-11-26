@@ -710,15 +710,24 @@ class TuyaProvider(threading.Thread):
             dev = self.devices.get(c["id"])
             row = {"lokal_scanning": (getattr(self, "cam_scan", {}) or {}).get(c["id"]), "navn": c["name"], "id": c["id"], "kategori": dev.category if dev else None,
                    "produkt": (dev.info.get("product_name") if dev else None), "online": c["online"], "svar": {}}
+            hls_url = None
             if cloud and dev:
                 for kind in STREAM_TYPES:
                     try:
                         res = cloud.cloudrequest(f"/v1.0/devices/{c['id']}/stream/actions/allocate", action="POST", post={"type": kind})
+                        if isinstance(res, dict) and (res.get("result") or {}).get("url") and kind == "hls":
+                            hls_url = res["result"]["url"]
                         if isinstance(res, dict):
                             res = {k: (v if k != "result" else {"url": "(modtaget)"} if v and v.get("url") else v) for k, v in res.items()}
                         row["svar"][kind] = res
                     except Exception as err:  # noqa: BLE001
                         row["svar"][kind] = f"fejl: {err}"
+            if hls_url and c["online"]:
+                import asyncio
+
+                from ..diag import probe_url
+
+                row["test_af_video_hls"] = asyncio.run(probe_url(hls_url))
             out.append(row)
         return out
 

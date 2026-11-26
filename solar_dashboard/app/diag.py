@@ -95,3 +95,30 @@ async def find_stream(ip: str, user: str, password: str) -> dict:
     if good:
         return {"ok": True, "url": good[0], "porte": open_ports}
     return {"ok": False, "fejl": "RTSP-porten svarer, men ingen af de kendte adresser virkede med dette brugernavn/kode", "porte": open_ports}
+
+
+async def probe_url(url: str, seconds: int = 14) -> dict:
+    """Prøv at åbne en videoadresse med ffmpeg og fortæl hvad der skete (uden at afsløre adressens nøgler)."""
+    from urllib.parse import urlsplit
+
+    from .providers.camera import ffmpeg_exe
+
+    parts = urlsplit(url)
+    info = {"type": parts.scheme, "vaert": parts.hostname, "sti": parts.path[-40:]}
+    try:
+        pre = ["-rtsp_transport", "tcp"] if url.startswith("rtsp") else []
+        proc = await asyncio.create_subprocess_exec(
+            ffmpeg_exe(), "-hide_banner", "-loglevel", "warning", *pre, "-i", url, "-t", "3", "-frames:v", "2", "-f", "null", "-",
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+        try:
+            _, err = await asyncio.wait_for(proc.communicate(), seconds)
+            info["ok"] = proc.returncode == 0
+            info["ffmpeg"] = err.decode(errors="ignore").strip().replace(url, "<adresse>")[-500:]
+        except asyncio.TimeoutError:
+            proc.kill()
+            info["ok"] = False
+            info["ffmpeg"] = f"ingen billeder efter {seconds} sek (tidsgrænse)"
+    except Exception as err:  # noqa: BLE001
+        info["ok"] = False
+        info["ffmpeg"] = f"kunne ikke starte ffmpeg: {err}"
+    return info
