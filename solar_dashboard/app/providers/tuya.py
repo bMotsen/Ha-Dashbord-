@@ -277,6 +277,18 @@ class TuyaProvider(threading.Thread):
                 dev.online = False if self.cloud is None else dev.online
             LOG.debug("Tuya lokal %s: %s", dev.name, err)
 
+    def _merge_properties(self, cloud, dev: TuyaDevice) -> dict | None:
+        try:
+            res = cloud.cloudrequest(f"/v2.0/cloud/thing/{dev.id}/shadow/properties")
+        except Exception as err:  # noqa: BLE001
+            LOG.debug("Tuya properties %s: %s", dev.name, err)
+            return None
+        props = ((res or {}).get("result") or {}).get("properties") if isinstance(res, dict) else None
+        for p in props or []:
+            if p.get("code") and p.get("value") is not None:
+                dev.status[p["code"]] = p["value"]
+        return res if isinstance(res, dict) else None
+
     def _poll_cloud(self, devs: list[TuyaDevice]) -> None:
         cloud = self._cloud()
         if cloud is None or not devs:
@@ -298,6 +310,10 @@ class TuyaProvider(threading.Thread):
                     if isinstance(r, dict) and r.get("success"):
                         d.status.update({s["code"]: s.get("value") for s in r.get("result", []) if "code" in s})
                         d.via, d.last_seen = "cloud", time.time()
+            # ladere: hent alle datapunkter (effekt, faser ...) - den almindelige statusliste har kun få
+            for d in chunk:
+                if d.category == "qccdz":
+                    self._merge_properties(cloud, d)
             # online-status
             try:
                 res = cloud.cloudrequest("/v2.0/cloud/thing/batch", query={"device_ids": ids})
@@ -424,6 +440,14 @@ class TuyaProvider(threading.Thread):
                     out.append(d)
         return out
 
+    def _raw_properties(self, dev: TuyaDevice):
+        try:
+            cloud = self._cloud()
+            res = cloud.cloudrequest(f"/v2.0/cloud/thing/{dev.id}/shadow/properties") if cloud else None
+            return res
+        except Exception as err:  # noqa: BLE001
+            return f"fejl: {err}"
+
     def charger_debug(self) -> dict:
         """Rå data fra laderen, så vi kan se hvilke koder den bruger."""
         dev = self._charger()
@@ -432,6 +456,7 @@ class TuyaProvider(threading.Thread):
         return {
             "navn": dev.name, "id": dev.id, "kategori": dev.category, "online": dev.online, "via": dev.via,
             "status_nu": dev.status,
+            "skyen_alle_datapunkter": self._raw_properties(dev),
             "koder_og_typer": {c: {"dp": dp, "vaerdier": vals} for c, (dp, vals) in dev.by_code.items()},
             "faser_afkodet": self._phases(dev),
             "dashboardet_tolker_det_som": self.charger_view(dev),
