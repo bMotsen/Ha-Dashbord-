@@ -638,6 +638,11 @@ class TuyaProvider(threading.Thread):
         # egne RTSP-kameraer (fx O-KAM) først, derefter Tuya-kameraer
         return sorted(out, key=lambda c: (0 if (c["name"] in rtsp or c["id"] in rtsp) else 1, c["name"].lower()))
 
+    def save_camera_url(self, cam_id: str, url: str) -> None:
+        d = load_json(DATA_DIR / "camera_urls.json", {})
+        d[cam_id] = url
+        save_json(DATA_DIR / "camera_urls.json", d)
+
     def scan_cameras(self) -> dict:
         """Undersøg hvert kamera på netværket: har det en RTSP-server (med eller uden kode)?"""
         import asyncio
@@ -677,6 +682,9 @@ class TuyaProvider(threading.Thread):
         for key in (cam_id, dev.name if dev else None, (self.cfg.get("rename") or {}).get(cam_id)):
             if key and key in rtsp:
                 return rtsp[key]
+        saved = load_json(DATA_DIR / "camera_urls.json", {}).get(cam_id)
+        if saved:
+            return saved
         local = (getattr(self, "cam_scan", {}) or {}).get(cam_id, {})
         if local.get("url"):
             return local["url"]

@@ -460,6 +460,11 @@ function renderCar() {
 // ---------- lader-rådata (tryk på bilens titel)
 async function openDiag(path, title) {
   $("diagModal").hidden = false;
+  $("diagForm").hidden = !path.includes("cameras");
+  if (path.includes("cameras")) {
+    $("dfCam").innerHTML = (S?.cameras?.items || []).map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+    $("dfMsg").textContent = "";
+  }
   $("diagTitle").textContent = title;
   $("diagText").textContent = "Henter …";
   try {
@@ -470,6 +475,16 @@ async function openDiag(path, title) {
 }
 $("carTitle").addEventListener("click", () => openDiag("api/diag/charger", "Lader – rådata"));
 $("tCam").querySelector("h2").addEventListener("click", () => openDiag("api/diag/cameras", "Kameraer – Tuyas svar"));
+$("dfGo").addEventListener("click", async () => {
+  $("dfMsg").textContent = "Prøver adresser … det kan tage et minut";
+  try {
+    const r = await fetch("api/camera/login", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: $("dfCam").value, ip: $("dfIp").value, password: $("dfPw").value, user: "admin" }) });
+    const d = await r.json();
+    $("dfMsg").textContent = d.besked || d.detail || JSON.stringify(d);
+    if (d.ok) { camKey = ""; setTimeout(() => { $("diagModal").hidden = true; renderCameras(); }, 1500); }
+  } catch (e) { $("dfMsg").textContent = "Fejl: " + e; }
+});
 $("diagClose").addEventListener("click", () => ($("diagModal").hidden = true));
 $("diagCopy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText($("diagText").textContent); toast("Kopieret"); }

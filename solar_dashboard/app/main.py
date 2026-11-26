@@ -235,6 +235,27 @@ async def api_diag_camera(ip: str):
     return await scan(ip)
 
 
+@app.post("/api/camera/login")
+async def api_camera_login(body: dict = Body(...)) -> dict:
+    import ipaddress
+
+    from .diag import find_stream
+
+    cam_id, ip = str(body.get("id") or ""), str(body.get("ip") or "").strip()
+    try:
+        if not ipaddress.ip_address(ip).is_private:
+            raise ValueError
+    except ValueError as err:
+        raise HTTPException(400, "Skriv kameraets IP-adresse på dit eget netværk") from err
+    res = await find_stream(ip, str(body.get("user") or "admin"), str(body.get("password") or ""))
+    if res.get("ok"):
+        if tuya is None:
+            raise HTTPException(404, "Tuya er ikke sat op")
+        tuya.save_camera_url(cam_id, res["url"])
+        return {"ok": True, "besked": "Fundet og gemt. Billedet kommer om lidt.", "porte": res.get("porte")}
+    return {"ok": False, "besked": res.get("fejl")}
+
+
 @app.get("/api/diag/cameras")
 async def api_diag_cameras():
     import asyncio
