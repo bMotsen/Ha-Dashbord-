@@ -612,7 +612,14 @@ class TuyaProvider(threading.Thread):
         self.store.set("devices", {"ok": self.error is None, "error": self.error, "demo": False, "items": views,
                                    "updated": iso(utcnow())})
         if charger is not None:
-            self.store.set("charger", self.charger_view(charger))
+            view = self.charger_view(charger)
+            self.store.set("charger", view)
+            stats = getattr(self, "stats", None)
+            if stats is not None:
+                try:
+                    stats.update(view)
+                except Exception:  # noqa: BLE001
+                    LOG.debug("Lader-statistik fejlede", exc_info=True)
         self.store.set("cameras", {"demo": False, "items": self.camera_list()})
 
     # ------------------------------------------------------------------ kameraer

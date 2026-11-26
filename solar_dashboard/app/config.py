@@ -113,6 +113,7 @@ DEFAULTS: dict[str, Any] = {
         "hide": [],                 # ID'er eller navne der ikke skal vises
         "rename": {},               # {"enheds-id": "Nyt navn"}
         "order": [],                # ID'er eller navne i ønsket rækkefølge
+        "charger_start_kwh": 0,     # kWh der allerede er ladet før dashboardet begyndte at tælle
         "charger_ip": "",           # IP til elbil-laderen (aflæsning direkte på LAN)
         "ev_charger_id": "",        # tom = find automatisk (Tuya kategori "qccdz")
         "show_charger_in_devices": False,

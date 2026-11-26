@@ -207,6 +207,26 @@ class PriceProvider(threading.Thread):
         r.raise_for_status()
         return r.json().get("records") or []
 
+    def _discover_grid(self, gln: str) -> list[dict]:
+        """De kendte koder gav intet: find selv nettariffen (C-kunde, tidsdifferentieret) hos netselskabet."""
+        try:
+            now = datetime.now(self.tz).replace(tzinfo=None).isoformat()
+            params = {"filter": json.dumps({"GLN_Number": [gln], "ChargeType": ["D03"]}), "sort": "ValidFrom DESC", "limit": "400"}
+            r = self.http.get(f"{EDS}/DatahubPricelist", params=params)
+            r.raise_for_status()
+            recs = [x for x in r.json().get("records") or []
+                    if x.get("ValidFrom", "") <= now and (not x.get("ValidTo") or x["ValidTo"] > now)]
+            def text(x): return f"{x.get('Note') or ''} {x.get('Description') or ''}".lower()
+            picks = [x for x in recs if any(w in text(x) for w in ("nettarif c", "c-kunde", "c kunde", "tarif c"))
+                     and any(x.get(f"Price{h}") not in (None, x.get("Price1")) for h in range(2, 25))]
+            codes = sorted({x.get("ChargeTypeCode") for x in picks})
+            LOG.info("Nettarif: koderne for dette netselskab er %s (valgt: %s)",
+                     sorted({f"{x.get('ChargeTypeCode')}={(x.get('Note') or '')[:40]}" for x in recs})[:12], codes)
+            return picks
+        except Exception as err:  # noqa: BLE001
+            LOG.warning("Kunne ikke finde nettarif automatisk: %s", err)
+            return []
+
     def _refresh_tariffs(self) -> None:
         cache = dict(self.tariff_cache)
         en = self.cfg.get("energinet") or {}
@@ -221,6 +241,8 @@ class PriceProvider(threading.Thread):
             if not g or not c:
                 continue
             recs = self._fetch_pricelist(g, c, ct)
+            if not recs and key == "nettarif":
+                recs = self._discover_grid(g)
             if recs:
                 cache[key] = recs
             else:

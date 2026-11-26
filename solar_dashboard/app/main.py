@@ -54,6 +54,9 @@ if not force_demo and cfg["tuya"].get("enabled"):
     from .providers.tuya import TuyaProvider
 
     tuya = TuyaProvider(cfg["tuya"], store)
+    from .charger_stats import ChargerStats
+
+    tuya.stats = ChargerStats(tz, prices.price_at, cfg["tuya"].get("charger_start_kwh") or 0)
     threads.append(tuya)
 elif demo_ok:
     demo_parts.update({"devices", "charger"})
@@ -97,6 +100,8 @@ app = FastAPI(title="Solar Dashboard", lifespan=lifespan, docs_url="/api/docs", 
 def api_state() -> JSONResponse:
     snap = store.snapshot()
     snap["prices"] = prices.snapshot()
+    if tuya is not None and getattr(tuya, "stats", None):
+        snap["charger_stats"] = tuya.stats.summary()
     if (snap.get("cameras") or {}).get("items") is None and demo_ok:
         snap["cameras"] = {"demo": True, "items": [{"id": "demo-1", "name": "Indkørsel", "online": True},
                                                    {"id": "demo-2", "name": "Baghave", "online": True},

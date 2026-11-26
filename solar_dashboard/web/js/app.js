@@ -421,10 +421,14 @@ function renderCar() {
     const stateTxt = charging ? "Lader" : (CHARGER_STATE[ch.state] || ch.state || "–");
     const sub = charging ? `${kW(carW, 1)} kW` : ch.state === "finished" ? "Opladning færdig" : ch.state === "connected" ? "Bilen er i stik" : ch.state === "idle" ? "Ingen bil i stik" : "";
     const cw = pr.cheapest;
+    const cs = S.charger_stats || {};
+    const dmin = (d) => { const m = /^(\d+):(\d+)/.exec(d || ""); if (!m) return ""; const t = +m[1] * 60 + +m[2]; return t >= 60 ? `${Math.floor(t / 60)} t ${pad(t % 60)} m` : `${t} min`; };
+    const sinceTxt = cs.since ? `siden ${new Date(cs.since).getDate()}. ${MONTHS[new Date(cs.since).getMonth()].slice(0, 3)}` : "";
     const mini = [
       ["zap", carW ? `${kW(carW)} kW` : "0 kW", "Ladeeffekt"],
-      ["plug-zap", ch.session_kwh != null ? `${num(ch.session_kwh, 1)} kWh` : "–", "Denne opladning"],
-      ch.current_a != null ? ["activity", `${num(ch.current_a, 0)} A`, "Ladestrøm"] : ["leaf", cw ? `${hhmm(new Date(cw.start))}–${hhmm(new Date(cw.end))}` : "–", "Billigst at lade"],
+      ["plug-zap", ch.session_kwh != null ? `${num(ch.session_kwh, 1)} kWh` : "–", charging && ch.duration ? `Denne · ${dmin(ch.duration)}` : "Seneste opladning"],
+      ["battery-charging", cs.total_kwh != null ? `${num(cs.total_kwh, 0)} kWh` : "–", `I alt ${sinceTxt}`.trim()],
+      ["coins", cs.month_kwh != null ? `${num(cs.month_dkk, 0)} kr` : "–", cs.month_kwh != null ? `Måned · ${num(cs.month_kwh, 0)} kWh` : "Denne måned"],
     ];
     setHTML($("carBody"), `
       <div class="car-main">
@@ -432,8 +436,8 @@ function renderCar() {
         <div class="car-img">${carSVG(charging)}</div>
       </div>
       <div class="car-bar ${charging ? "charging" : ""}"><i style="width:${charging ? 100 : 0}%"></i></div>
-      <div class="car-mini">${mini.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>
-      <div class="car-note">${ch.duration && charging ? `Ladetid ${esc(ch.duration)} · ` : ""}${ch.temp != null ? `Lader ${num(ch.temp, 0)}° · ` : ""}bilens batteri er ikke tilgængeligt</div>`);
+      <div class="car-mini four">${mini.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="car-note">${ch.temp != null ? `Lader ${num(ch.temp, 0)}° · ` : ""}bilens batteri er ikke tilgængeligt</div>`);
     $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
     return;
   }
