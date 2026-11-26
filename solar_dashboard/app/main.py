@@ -193,6 +193,31 @@ def api_car_climate(body: dict = Body(...)) -> dict:
         raise HTTPException(502, str(err)) from err
 
 
+@app.get("/api/camera/{cam_id}/snapshot")
+async def api_camera_snapshot(cam_id: str, w: int = 480):
+    import asyncio
+
+    from fastapi.responses import Response
+
+    from .providers.camera import snapshot
+
+    w = max(160, min(w, 1280))
+    if cam_id.startswith("demo-"):
+        return Response(await snapshot("", w, True), media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+    if tuya is None:
+        raise HTTPException(404, "Tuya er ikke sat op")
+    try:
+        source = await asyncio.to_thread(tuya.stream_url, cam_id)
+    except KeyError as err:
+        raise HTTPException(404, "Ukendt kamera") from err
+    except Exception as err:  # noqa: BLE001
+        raise HTTPException(502, str(err)) from err
+    data = await snapshot(source, w)
+    if not data:
+        raise HTTPException(504, "Kameraet gav intet billede")
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/camera/{cam_id}/stream")
 async def api_camera(cam_id: str, w: int = 480, fps: int = 4):
     import asyncio

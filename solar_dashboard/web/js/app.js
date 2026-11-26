@@ -549,12 +549,33 @@ $("carBody").addEventListener("pointerdown", (e) => {
 // ---------- kameraer
 let camKey = "";
 const camSrc = (id, w, fps) => `api/camera/${encodeURIComponent(id)}/stream?w=${w}&fps=${fps}&t=${Date.now()}`;
-function camStart(img) {
-  img.dataset.live = "1";
-  img.classList.remove("err");
-  img.src = camSrc(img.dataset.id, 480, 4);
+const snapSrc = (id, w) => `api/camera/${encodeURIComponent(id)}/snapshot?w=${w}&t=${Date.now()}`;
+function camStop(img) {
+  img.dataset.live = ""; img.dataset.mode = "";
+  clearTimeout(img._t); clearInterval(img._iv);
+  img.removeAttribute("src");
 }
-function camStop(img) { img.dataset.live = ""; img.removeAttribute("src"); }
+function camPoll(img, w = 480, every = 3000) {
+  // Reserve: hent ét billede ad gangen (virker også når en kontinuerlig strøm bliver standset undervejs)
+  clearInterval(img._iv);
+  img.dataset.mode = "poll";
+  const tick = () => { if (img.dataset.live && !document.hidden && img.dataset.busy !== "1") { img.dataset.busy = "1"; img.src = snapSrc(img.dataset.id, w); } };
+  tick();
+  img._iv = setInterval(tick, every);
+}
+function camStart(img, big = false) {
+  img.dataset.live = "1";
+  img.dataset.mode = "stream";
+  img.dataset.busy = "";
+  img.classList.remove("err");
+  clearTimeout(img._t); clearInterval(img._iv);
+  img.src = camSrc(img.dataset.id, big ? 960 : 480, big ? 8 : 4);
+  // kommer der ikke billeder inden for 12 sek, skift til billede-for-billede
+  img._t = setTimeout(() => {
+    const shown = big ? img.dataset.got === "1" : img.parentElement.classList.contains("ok");
+    if (img.dataset.live && !shown) camPoll(img, big ? 960 : 480, big ? 2000 : 3000);
+  }, 12000);
+}
 
 function renderCameras() {
   const cam = S.cameras || {};
@@ -577,9 +598,11 @@ function renderCameras() {
       <img data-id="${esc(c.id)}" alt="" draggable="false"><div class="cam-off">${icon("cctv")}<span>Henter …</span></div>
       <div class="cam-name">${esc(c.name)}</div></button>`).join("");
   grid.querySelectorAll("img").forEach((img) => {
-    img.addEventListener("load", () => img.parentElement.classList.add("ok"));
+    img.addEventListener("load", () => { img.parentElement.classList.add("ok"); img.dataset.busy = ""; img.dataset.got = "1"; });
     img.addEventListener("error", async () => {
       if (!img.dataset.live) return;
+      img.dataset.busy = "";
+      if (img.dataset.mode === "poll") { img.parentElement.querySelector(".cam-off span").textContent = "Henter billede …"; return; }
       const box = img.parentElement;
       box.classList.remove("ok");
       let msg = "Ingen forbindelse";
@@ -600,10 +623,13 @@ $("camGrid").addEventListener("click", (e) => {
   if (!b) return;
   const big = $("camBig");
   $("camBigName").textContent = b.querySelector(".cam-name").textContent;
-  big.src = camSrc(b.dataset.id, 960, 8);
+  big.dataset.id = b.dataset.id; big.dataset.got = ""; big.dataset.live = "1";
   $("camModal").hidden = false;
+  camStart(big, true);
 });
-const camClose = () => { $("camBig").removeAttribute("src"); $("camModal").hidden = true; };
+const camClose = () => { camStop($("camBig")); $("camModal").hidden = true; };
+$("camBig").addEventListener("load", () => { $("camBig").dataset.got = "1"; $("camBig").dataset.busy = ""; });
+$("camBig").addEventListener("error", () => { $("camBig").dataset.busy = ""; });
 $("camClose").addEventListener("click", camClose);
 $("camModal").addEventListener("click", (e) => { if (e.target === $("camModal")) camClose(); });
 // spar båndbredde og CPU når siden ikke vises

@@ -685,6 +685,9 @@ class TuyaProvider(threading.Thread):
         saved = load_json(DATA_DIR / "camera_urls.json", {}).get(cam_id)
         if saved:
             return saved
+        cached = getattr(self, "_url_cache", {}).get(cam_id)
+        if cached and time.time() - cached[1] < 90:
+            return cached[0]
         local = (getattr(self, "cam_scan", {}) or {}).get(cam_id, {})
         if local.get("url"):
             return local["url"]
@@ -697,6 +700,9 @@ class TuyaProvider(threading.Thread):
         for kind in STREAM_TYPES:
             res = cloud.cloudrequest(f"/v1.0/devices/{cam_id}/stream/actions/allocate", action="POST", post={"type": kind})
             if isinstance(res, dict) and res.get("success") and (res.get("result") or {}).get("url"):
+                if not hasattr(self, "_url_cache"):
+                    self._url_cache = {}
+                self._url_cache[cam_id] = (res["result"]["url"], time.time())
                 return res["result"]["url"]
             answers.append(f"{kind}: code={res.get('code') if isinstance(res, dict) else '?'} msg={res.get('msg') if isinstance(res, dict) else res}")
         LOG.warning("Tuya videoadresse for %s afvist: %s", dev.name, " | ".join(answers))

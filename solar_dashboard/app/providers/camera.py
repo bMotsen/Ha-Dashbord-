@@ -61,3 +61,21 @@ async def mjpeg_stream(source: str, width: int = 480, fps: int = 4, demo: bool =
             await proc.wait()
         except Exception:  # noqa: BLE001
             pass
+
+
+async def snapshot(source: str, width: int = 480, demo: bool = False) -> bytes:
+    """Ét JPEG-billede fra videostrømmen (bruges når den kontinuerlige strøm ikke kan vises)."""
+    web = source.startswith(("http://", "https://"))
+    pre = ["-rtsp_transport", "tcp"] if source.startswith("rtsp") else []
+    opts = ["-probesize", "1500000", "-analyzeduration", "2000000"] if web else []
+    src = ["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=10"] if demo else [*opts, *pre, "-i", source]
+    proc = await asyncio.create_subprocess_exec(
+        ffmpeg_exe(), "-hide_banner", "-loglevel", "error", *src, "-an", "-frames:v", "1",
+        "-vf", f"scale={width}:-2", "-q:v", "5", "-f", "image2pipe", "-vcodec", "mjpeg", "-",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+    try:
+        data, _ = await asyncio.wait_for(proc.communicate(), 25)
+        return data
+    except asyncio.TimeoutError:
+        proc.kill()
+        return b""
