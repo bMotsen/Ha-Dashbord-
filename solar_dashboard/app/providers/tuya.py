@@ -728,6 +728,9 @@ class TuyaProvider(threading.Thread):
                 from ..diag import probe_url
 
                 row["test_af_video_hls"] = asyncio.run(probe_url(hls_url))
+                from ..diag import probe_dashboard_stream
+
+                row["test_som_dashboardet_viser_det"] = asyncio.run(probe_dashboard_stream(hls_url))
             out.append(row)
         return out
 

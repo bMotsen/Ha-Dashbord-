@@ -122,3 +122,27 @@ async def probe_url(url: str, seconds: int = 14) -> dict:
         info["ok"] = False
         info["ffmpeg"] = f"kunne ikke starte ffmpeg: {err}"
     return info
+
+
+async def probe_dashboard_stream(url: str, seconds: int = 20) -> dict:
+    """Kør præcis den samme omsætning som dashboardet bruger, og tæl billeder."""
+    from .providers.camera import mjpeg_stream
+
+    got, first = 0, None
+    t0 = asyncio.get_event_loop().time()
+    gen = mjpeg_stream(url, 480, 4)
+    try:
+        async def run():
+            nonlocal got, first
+            async for chunk in gen:
+                if first is None:
+                    first = round(asyncio.get_event_loop().time() - t0, 1)
+                got += chunk.count(b"\xff\xd8")
+                if got >= 3:
+                    return
+        await asyncio.wait_for(run(), seconds)
+    except asyncio.TimeoutError:
+        pass
+    finally:
+        await gen.aclose()
+    return {"billeder_modtaget": got, "foerste_billede_efter_sek": first, "virker": got > 0}
