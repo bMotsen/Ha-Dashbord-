@@ -62,6 +62,7 @@ class TuyaDevice:
         self._dev = None
         self._dev_key: tuple | None = None
         self.by_code: dict[str, tuple[str, dict]] = {}
+        self.extra_map: dict[str, str] = {}
         self.set_mapping(info.get("mapping") or {})
 
     def set_mapping(self, mapping: dict) -> None:
@@ -70,6 +71,8 @@ class TuyaDevice:
             if isinstance(m, dict) and m.get("code"):
                 vals = m.get("values") if isinstance(m.get("values"), dict) else {}
                 self.by_code[m["code"]] = (str(dp), vals)
+        for code, dp in getattr(self, "extra_map", {}).items():  # datapunkter fundet via skyens "properties"
+            self.by_code.setdefault(code, (dp, {}))
 
     @property
     def name(self) -> str:
@@ -267,6 +270,14 @@ class TuyaProvider(threading.Thread):
     def _poll_local(self, dev: TuyaDevice) -> None:
         try:
             res = dev.local().status()
+            if (not isinstance(res, dict) or "dps" not in res) and not dev.info.get("version_known"):
+                for ver in (3.4, 3.5, 3.3, 3.1):  # protokolversionen er ukendt - find den
+                    dev.info["version"] = ver
+                    res = dev.local().status()
+                    if isinstance(res, dict) and "dps" in res:
+                        dev.info["version_known"] = True
+                        LOG.info("Tuya: %s bruger lokal protokol %s", dev.name, ver)
+                        break
             if not isinstance(res, dict) or "dps" not in res:
                 raise RuntimeError(res.get("Error") if isinstance(res, dict) else res)
             dev.status.update(dev.dps_to_codes(res["dps"]))
@@ -285,6 +296,9 @@ class TuyaProvider(threading.Thread):
             return None
         props = ((res or {}).get("result") or {}).get("properties") if isinstance(res, dict) else None
         for p in props or []:
+            if p.get("code") and p.get("dp_id") is not None:
+                dev.extra_map[p["code"]] = str(p["dp_id"])
+                dev.by_code.setdefault(p["code"], (str(p["dp_id"]), {}))
             if p.get("code") and p.get("value") is not None:
                 dev.status[p["code"]] = p["value"]
         return res if isinstance(res, dict) else None
@@ -354,6 +368,8 @@ class TuyaProvider(threading.Thread):
                 cloud = [d for d in devs if d not in local]
                 list(self.pool.map(self._poll_local, local))
                 charger = self._charger()
+                if charger is not None and not charger.extra_map and self._cloud() is not None:
+                    self._merge_properties(self._cloud(), charger)   # lær de lokale datapunkters navne
                 if charger is not None and charger in cloud and now - self._last_charger > 10:
                     self._last_charger = now  # laderen hentes oftere end de andre enheder
                     self._poll_cloud([charger])
