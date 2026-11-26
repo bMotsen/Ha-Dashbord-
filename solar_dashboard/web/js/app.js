@@ -453,6 +453,22 @@ function renderCar() {
   $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
 }
 
+// ---------- lader-rådata (tryk på bilens titel)
+$("carTitle").addEventListener("click", async () => {
+  $("diagModal").hidden = false;
+  $("diagText").textContent = "Henter …";
+  try {
+    const r = await fetch("api/diag/charger", { cache: "no-store" });
+    const d = await r.json();
+    $("diagText").textContent = JSON.stringify(d, null, 1);
+  } catch (e) { $("diagText").textContent = "Fejl: " + e; }
+});
+$("diagClose").addEventListener("click", () => ($("diagModal").hidden = true));
+$("diagCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("diagText").textContent); toast("Kopieret"); }
+  catch { const r = document.createRange(); r.selectNodeContents($("diagText")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Marker og kopier teksten"); }
+});
+
 // ---------- klima-knap
 $("carBody").addEventListener("click", async (e) => {
   const b = e.target.closest("#climBtn");

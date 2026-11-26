@@ -94,6 +94,8 @@
   <!-- Vejr foran fliserne (regndråber, sne, lyn) -->
   <canvas class="wx-front" id="wxFront" aria-hidden="true"></canvas>
 
+  <div class="modal" id="diagModal" hidden><div class="modal-card diag-card"><h3>Lader – rådata</h3><pre id="diagText">Henter …</pre><div class="modal-actions"><button class="btn ghost" id="diagCopy">Kopiér</button><button class="btn primary" id="diagClose">Luk</button></div></div></div>
+
   <div class="modal" id="camModal" hidden><div class="cam-big"><img id="camBig" alt=""><div class="cam-big-name" id="camBigName"></div><button class="round-btn cam-close" id="camClose" aria-label="Luk">✕</button></div></div>
 
   <div class="modal" id="wxModal" hidden><div class="modal-card wx-card" id="wxCard"></div></div>
