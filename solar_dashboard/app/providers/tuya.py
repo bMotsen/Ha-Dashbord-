@@ -401,6 +401,29 @@ class TuyaProvider(threading.Thread):
             out["battery"] = dev.scaled("battery_percentage")
         return out
 
+    @staticmethod
+    def _decode_phase(raw) -> dict | None:
+        """Tuya-ladere sender fase-data som base64: 2 byte spænding (0,1 V), 3 byte strøm (mA), 3 byte effekt (W)."""
+        import base64
+
+        try:
+            b = base64.b64decode(raw)
+            if len(b) < 8:
+                return None
+            return {"v": int.from_bytes(b[0:2], "big") / 10, "a": int.from_bytes(b[2:5], "big") / 1000,
+                    "w": int.from_bytes(b[5:8], "big")}
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _phases(self, dev: TuyaDevice) -> list[dict]:
+        out = []
+        for code in ("phase_a", "phase_b", "phase_c"):
+            if isinstance(dev.status.get(code), str):
+                d = self._decode_phase(dev.status[code])
+                if d and 0 <= d["v"] < 500:
+                    out.append(d)
+        return out
+
     def charger_debug(self) -> dict:
         """Rå data fra laderen, så vi kan se hvilke koder den bruger."""
         dev = self._charger()
@@ -410,6 +433,7 @@ class TuyaProvider(threading.Thread):
             "navn": dev.name, "id": dev.id, "kategori": dev.category, "online": dev.online, "via": dev.via,
             "status_nu": dev.status,
             "koder_og_typer": {c: {"dp": dp, "vaerdier": vals} for c, (dp, vals) in dev.by_code.items()},
+            "faser_afkodet": self._phases(dev),
             "dashboardet_tolker_det_som": self.charger_view(dev),
         }
 
@@ -424,11 +448,17 @@ class TuyaProvider(threading.Thread):
             unit = dev.unit(pc).lower()
             if v is not None:
                 power_kw = v if unit == "kw" else v / 1000 if unit == "w" or v > 100 else v
+        phases = self._phases(dev)
+        phase_kw = sum(p["w"] for p in phases) / 1000 if phases else None
+        if phase_kw and (power_kw is None or power_kw < 0.05):
+            power_kw = phase_kw
         ec = dev.first(CHARGER_ENERGY_CODES)
         cc = dev.first(CHARGER_CURRENT_CODES)
         sw = dev.first(SWITCH_CODES)
         if state is None and power_kw is not None:
             state = "charging" if power_kw > 0.3 else "idle"
+        if power_kw is not None and power_kw > 0.3:
+            state = "charging"          # effekt trækkes = den lader, uanset hvad statuskoden hedder
         return {
             "ok": True,
             "demo": False,
