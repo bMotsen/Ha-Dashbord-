@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -520,7 +521,7 @@ class TuyaProvider(threading.Thread):
             "volts": [round(v, 1) for v in volts],
             "temp": round(temp / 10, 1) if temp is not None else None,
             "duration": st.get("Ctime"),
-            "switch_code": sw, "on": bool(st.get(sw)) if sw else None,
+            "switch_code": sw or "ChargingOperation", "on": state == "charging",
             "confirm": bool(self.cfg.get("confirm_charger_toggle", True)),
             "updated": iso(utcnow()),
         }
@@ -534,6 +535,7 @@ class TuyaProvider(threading.Thread):
             "navn": dev.name, "id": dev.id, "kategori": dev.category, "online": dev.online, "via": dev.via,
             "status_nu": dev.status,
             "skyen_alle_datapunkter": self._raw_properties(dev),
+            "skyens_model_ChargingOperation": self._enum_range(dev, "ChargingOperation"),
             "koder_og_typer": {c: {"dp": dp, "vaerdier": vals} for c, (dp, vals) in dev.by_code.items()},
             "faser_afkodet": self._phases(dev),
             "dashboardet_tolker_det_som": self.charger_view(dev),
@@ -652,11 +654,61 @@ class TuyaProvider(threading.Thread):
         raise RuntimeError(f"Tuya gav ingen videoadresse: {msg}. Tjek at 'IoT Video Live Stream' er tilføjet under Service API i dit Tuya-projekt")
 
     # ------------------------------------------------------------------ control
+    # ------------------------------------------------------------------ Feyree start/stop
+    def _thing_model(self, dev: TuyaDevice):
+        cloud = self._cloud()
+        if cloud is None:
+            return None
+        res = cloud.cloudrequest(f"/v2.0/cloud/thing/{dev.id}/model")
+        model = ((res or {}).get("result") or {}).get("model") if isinstance(res, dict) else None
+        try:
+            return json.loads(model) if isinstance(model, str) else model
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _enum_range(self, dev: TuyaDevice, code: str) -> list[str]:
+        model = self._thing_model(dev) or {}
+        for svc in model.get("services", []) if isinstance(model, dict) else []:
+            for prop in svc.get("properties", []):
+                if prop.get("code") == code:
+                    spec = prop.get("typeSpec") or {}
+                    return [str(x) for x in (spec.get("range") or [])]
+        return []
+
+    def _feyree_toggle(self, dev: TuyaDevice, want_on: bool | None) -> dict:
+        charging = str(dev.status.get("DeviceState") or "").lower() in ("charing", "charging")
+        start = (not charging) if want_on is None else bool(want_on)
+        rng = self._enum_range(dev, "ChargingOperation")
+        key = ("start", "begin", "on") if start else ("stop", "end", "off")
+        value = next((v for v in rng if any(k in v.lower() for k in key) and "wait" not in v.lower()), None)
+        if value is None:
+            raise RuntimeError(f"Ukendte værdier for ChargingOperation: {rng or 'kunne ikke hentes fra Tuya'}. Send mig dem, så retter jeg knappen")
+        done = False
+        if self.cfg.get("use_local", True) and dev.can_local() and "ChargingOperation" in dev.by_code:
+            try:
+                res = dev.local().set_value(int(dev.by_code["ChargingOperation"][0]), value)
+                if isinstance(res, dict) and "Error" in res:
+                    raise RuntimeError(res["Error"])
+                done = True
+            except Exception as err:  # noqa: BLE001
+                LOG.info("Tuya lokal start/stop fejlede (%s) - prøver skyen", err)
+        if not done:
+            cloud = self._cloud()
+            res = cloud.cloudrequest(f"/v2.0/cloud/thing/{dev.id}/shadow/properties/issue", action="POST",
+                                     post={"properties": json.dumps({"ChargingOperation": value})})
+            if not (isinstance(res, dict) and res.get("success")):
+                raise RuntimeError(f"Tuya afviste kommandoen ({value}): {res.get('msg') if isinstance(res, dict) else res}")
+        LOG.info("Tuya: lader %s -> ChargingOperation=%s", dev.name, value)
+        self._last_charger = 0.0
+        return {"id": dev.id, "on": start}
+
     def toggle(self, dev_id: str, value: bool | None = None) -> dict:
         with self._lock:
             dev = self.devices.get(dev_id)
         if dev is None:
             raise KeyError(dev_id)
+        if "DeviceState" in dev.status or "ChargingOperation" in dev.status:
+            return self._feyree_toggle(dev, value)
         code = dev.first(SWITCH_CODES)
         if not code:
             raise ValueError("Enheden kan ikke tændes/slukkes")
