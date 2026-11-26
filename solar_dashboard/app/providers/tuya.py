@@ -352,6 +352,7 @@ class TuyaProvider(threading.Thread):
             LOG.warning("Tuya: %s", err)
             self.error = str(err)
         self._last_list = time.time()
+        threading.Timer(45, lambda: threading.Thread(target=self.scan_cameras, daemon=True).start()).start()
         if self.cfg.get("scan_network", True) and self.cfg.get("use_local", True):
             threading.Thread(target=self._scan, daemon=True).start()
             self._last_scan = time.time()
@@ -637,13 +638,48 @@ class TuyaProvider(threading.Thread):
         # egne RTSP-kameraer (fx O-KAM) først, derefter Tuya-kameraer
         return sorted(out, key=lambda c: (0 if (c["name"] in rtsp or c["id"] in rtsp) else 1, c["name"].lower()))
 
+    def scan_cameras(self) -> dict:
+        """Undersøg hvert kamera på netværket: har det en RTSP-server (med eller uden kode)?"""
+        import asyncio
+
+        from ..diag import scan
+
+        found = {}
+        for c in self.camera_list():
+            dev = self.devices.get(c["id"])
+            ip = (dev.info.get("ip") if dev else None) or ""
+            if not ip:
+                found[c["id"]] = {"ip": None, "note": "Kameraets IP er ikke fundet på netværket"}
+                continue
+            try:
+                res = asyncio.run(scan(ip))
+            except Exception as err:  # noqa: BLE001
+                found[c["id"]] = {"ip": ip, "note": f"scanning fejlede: {err}"}
+                continue
+            good = [r for r in res["rtsp_svar"] if " 200 " in r["svar"]]
+            auth = [r for r in res["rtsp_svar"] if " 401 " in r["svar"]]
+            entry = {"ip": ip, "aabne_porte": res["aabne_porte"], "konklusion": res["konklusion"]}
+            if good:
+                entry["url"] = f"rtsp://{ip}:{good[0]['port']}{good[0]['path']}"
+            elif auth:
+                entry["kraever_kode"] = f"rtsp://{ip}:{auth[0]['port']}{auth[0]['path']}"
+            found[c["id"]] = entry
+        self.cam_scan = found
+        LOG.info("Tuya: kamera-scanning: %s", "; ".join(
+            f"{self.devices[k].name if k in self.devices else k}: {v.get('url') or v.get('kraever_kode') or v.get('note') or v.get('konklusion')}"
+            for k, v in found.items()))
+        return found
+
     def stream_url(self, cam_id: str) -> str:
-        """Adresse til livestream: egen RTSP-adresse fra config, ellers fra Tuya-skyen."""
+        """Adresse til livestream: egen RTSP-adresse fra config, lokal RTSP uden kode, ellers Tuya-skyen."""
         rtsp = self.cfg.get("rtsp") or {}
         dev = self.devices.get(cam_id)
         for key in (cam_id, dev.name if dev else None, (self.cfg.get("rename") or {}).get(cam_id)):
             if key and key in rtsp:
                 return rtsp[key]
+        local = (getattr(self, "cam_scan", {}) or {}).get(cam_id, {})
+        if local.get("url"):
+            return local["url"]
         if dev is None:
             raise KeyError(cam_id)
         cloud = self._cloud()
@@ -664,7 +700,7 @@ class TuyaProvider(threading.Thread):
         out = []
         for c in self.camera_list():
             dev = self.devices.get(c["id"])
-            row = {"navn": c["name"], "id": c["id"], "kategori": dev.category if dev else None,
+            row = {"lokal_scanning": (getattr(self, "cam_scan", {}) or {}).get(c["id"]), "navn": c["name"], "id": c["id"], "kategori": dev.category if dev else None,
                    "produkt": (dev.info.get("product_name") if dev else None), "online": c["online"], "svar": {}}
             if cloud and dev:
                 for kind in STREAM_TYPES:

@@ -241,6 +241,7 @@ async def api_diag_cameras():
 
     if tuya is None:
         raise HTTPException(404, "Tuya er ikke sat op")
+    await asyncio.to_thread(tuya.scan_cameras)
     return await asyncio.to_thread(tuya.camera_debug)
 
 
