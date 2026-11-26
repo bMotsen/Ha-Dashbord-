@@ -125,7 +125,7 @@ class TuyaDevice:
         return next((c for c in codes if c in self.status), None)
 
 
-STREAM_TYPES = ("rtsp", "RTSP", "hls", "HLS", "flv", "rtmp")
+STREAM_TYPES = ("hls", "HLS", "rtsp", "RTSP", "flv", "rtmp")
 CAMERA_CATEGORIES = {"sp", "dghsxj", "sgbj", "wvdp", "znjxj", "cjsxj"}
 
 

@@ -30,7 +30,7 @@ async def mjpeg_stream(source: str, width: int = 480, fps: int = 4, demo: bool =
                f"testsrc2=size=640x360:rate={fps}", "-vf", f"scale={width}:-2", "-q:v", "7", "-f", "mpjpeg", "-boundary_tag", "frame", "-"]
     else:
         pre = ["-rtsp_transport", "tcp"] if source.startswith("rtsp") else []
-        cmd = [ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-fflags", "nobuffer", *pre, "-i", source,
+        cmd = [ffmpeg_exe(), "-hide_banner", "-loglevel", "warning", "-fflags", "nobuffer", *pre, "-i", source,
                "-an", "-vf", vf, "-q:v", "7", "-f", "mpjpeg", "-boundary_tag", "frame", "-"]
     proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     try:
@@ -42,10 +42,16 @@ async def mjpeg_stream(source: str, width: int = 480, fps: int = 4, demo: bool =
             got = True
             yield chunk
         if not got:
-            err = (await proc.stderr.read(400)).decode(errors="ignore").strip()
-            LOG.warning("Kamera: ffmpeg gav intet billede: %s", err)
+            err = (await proc.stderr.read(600)).decode(errors="ignore").strip().replace("\n", " | ")
+            LOG.warning("Kamera: ffmpeg gav intet billede (%s): %s", source.split("?")[0][:60], err)
     except asyncio.TimeoutError:
-        LOG.warning("Kamera: ingen billeder i 25 sek – afbryder")
+        LOG.warning("Kamera: ingen billeder i 25 sek – afbryder (%s)", source.split("?")[0][:60])
+        try:
+            proc.kill()
+            err = await asyncio.wait_for(proc.stderr.read(600), 2)
+            LOG.warning("Kamera: ffmpeg sagde: %s", err.decode(errors="ignore").strip().replace("\n", " | ")[:500])
+        except Exception:  # noqa: BLE001
+            pass
     finally:
         if proc.returncode is None:
             proc.kill()
