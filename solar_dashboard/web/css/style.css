@@ -847,3 +847,21 @@ body.lite .tile { background: linear-gradient(150deg, rgba(39, 82, 75, .6), rgba
   .t-car .car-bar { margin: .6rem 0 .2rem; }
   .t-car .tile-head { margin-bottom: .2rem; }
 }
+
+/* ===== Dybde: fliserne løfter sig fra baggrunden ===== */
+.tile, .wx-tile {
+  box-shadow:
+    inset 0 1px 0 var(--glass-hi),
+    inset 0 -1px 0 rgba(255, 255, 255, .04),
+    0 1px 2px rgba(0, 0, 0, .35),
+    0 6px 14px -2px rgba(0, 0, 0, .38),
+    0 18px 34px -8px rgba(0, 8, 6, .55),
+    0 40px 70px -24px rgba(0, 6, 4, .6);
+}
+.dock {
+  box-shadow: inset 0 1px 0 rgba(220, 235, 230, .2), 0 1px 2px rgba(0, 0, 0, .35), 0 8px 18px -4px rgba(0, 0, 0, .45), 0 24px 44px -12px rgba(0, 6, 4, .6);
+}
+.dev, .mini, .stat, .batt-strip { box-shadow: inset 0 1px 0 rgba(220, 235, 230, .12), 0 3px 8px -2px rgba(0, 0, 0, .28); }
+.dev.on { box-shadow: 0 10px 22px -8px rgba(0, 0, 0, .55), 0 2px 4px rgba(0, 0, 0, .25), inset 0 1px 0 #fff; }
+.cam { box-shadow: 0 6px 14px -4px rgba(0, 0, 0, .55); }
+@media (max-width: 760px), (max-height: 520px) { .dock { box-shadow: 0 -8px 20px -6px rgba(0, 0, 0, .5); } }

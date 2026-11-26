@@ -230,6 +230,13 @@ async def api_diag_camera(ip: str):
     return await scan(ip)
 
 
+@app.get("/api/diag/charger")
+def api_diag_charger() -> dict:
+    if tuya is None:
+        raise HTTPException(404, "Tuya er ikke sat op")
+    return tuya.charger_debug()
+
+
 @app.get("/api/health")
 def api_health() -> dict:
     return {"ok": True, "threads": {t.name: t.is_alive() for t in threads}}

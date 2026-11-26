@@ -144,6 +144,7 @@ class TuyaProvider(threading.Thread):
         self.error: str | None = None
         self._last_list = 0.0
         self._last_cloud = 0.0
+        self._last_charger = 0.0
         self._last_scan = 0.0
 
     def stop(self) -> None:
@@ -319,7 +320,7 @@ class TuyaProvider(threading.Thread):
             self._last_scan = time.time()
 
         local_s = max(int(self.cfg.get("poll_local_seconds") or 10), 3)
-        cloud_s = max(int(self.cfg.get("poll_cloud_seconds") or 60), 15)
+        cloud_s = max(int(self.cfg.get("poll_cloud_seconds") or 30), 15)
         list_s = max(int(self.cfg.get("refresh_devices_minutes") or 360), 10) * 60
         while not self._stop.is_set():
             now = time.time()
@@ -336,6 +337,10 @@ class TuyaProvider(threading.Thread):
                 local = [d for d in devs if use_local and d.can_local() and d.local_fail < 3]
                 cloud = [d for d in devs if d not in local]
                 list(self.pool.map(self._poll_local, local))
+                charger = self._charger()
+                if charger is not None and charger in cloud and now - self._last_charger > 10:
+                    self._last_charger = now  # laderen hentes oftere end de andre enheder
+                    self._poll_cloud([charger])
                 if cloud and now - self._last_cloud > cloud_s:
                     self._last_cloud = now
                     self._poll_cloud(cloud)
@@ -395,6 +400,18 @@ class TuyaProvider(threading.Thread):
         if "battery_percentage" in dev.status:
             out["battery"] = dev.scaled("battery_percentage")
         return out
+
+    def charger_debug(self) -> dict:
+        """Rå data fra laderen, så vi kan se hvilke koder den bruger."""
+        dev = self._charger()
+        if dev is None:
+            return {"fejl": "Ingen lader fundet"}
+        return {
+            "navn": dev.name, "id": dev.id, "kategori": dev.category, "online": dev.online, "via": dev.via,
+            "status_nu": dev.status,
+            "koder_og_typer": {c: {"dp": dp, "vaerdier": vals} for c, (dp, vals) in dev.by_code.items()},
+            "dashboardet_tolker_det_som": self.charger_view(dev),
+        }
 
     def charger_view(self, dev: TuyaDevice) -> dict:
         st_code = dev.first(CHARGER_STATE_CODES)

@@ -108,7 +108,7 @@ DEFAULTS: dict[str, Any] = {
         "snapshot_file": "snapshot.json",  # fra `python -m tinytuya scan` (valgfri)
         "scan_network": True,       # find enheders IP automatisk på netværket
         "poll_local_seconds": 10,
-        "poll_cloud_seconds": 60,
+        "poll_cloud_seconds": 30,
         "refresh_devices_minutes": 360,   # hent ny enhedsliste fra skyen (nye enheder dukker op af sig selv)
         "hide": [],                 # ID'er eller navne der ikke skal vises
         "rename": {},               # {"enheds-id": "Nyt navn"}
