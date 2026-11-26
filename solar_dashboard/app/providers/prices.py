@@ -72,6 +72,7 @@ class PriceProvider(threading.Thread):
         self.spot_cache_path = DATA_DIR / "spot.json"
         self.spot.update(load_json(self.spot_cache_path, {}))
         self.error: str | None = None
+        self._tariff_fail: dict[str, float] = {}
         self.tariff_note: str = ""
         self.demo = False
         self.updated: datetime | None = None
@@ -203,7 +204,7 @@ class PriceProvider(threading.Thread):
             r = self.http.get(f"{EDS}/DatahubPricelist", params=params)
             if r.status_code != 429:
                 break
-            time.sleep(4 * (attempt + 1))
+            time.sleep(min(float(r.headers.get("Retry-After") or 4 * (attempt + 1)), 20))
         r.raise_for_status()
         return r.json().get("records") or []
 
@@ -237,16 +238,34 @@ class PriceProvider(threading.Thread):
         gln, codes, _ = self._grid_def()
         if gln and codes and not self.cfg.get("manual_tariff"):
             groups["nettarif"] = (gln, codes, "D03")
-        for key, (g, c, ct) in groups.items():
+        fetched = cache.setdefault("_fetched", {})
+        now_ts = time.time()
+        # nettariffen først (vigtigst), og hver tarif for sig, så én fejl ikke stopper de andre
+        for key in sorted(groups, key=lambda k: 0 if k == "nettarif" else 1):
+            g, c, ct = groups[key]
             if not g or not c:
                 continue
-            recs = self._fetch_pricelist(g, c, ct)
-            if not recs and key == "nettarif":
-                recs = self._discover_grid(g)
-            if recs:
-                cache[key] = recs
-            else:
-                LOG.warning("Ingen tarif-poster fundet for %s (GLN %s, koder %s)", key, g, c)
+            fresh = cache.get(key) and now_ts - fetched.get(key, 0) < 12 * 3600
+            if fresh:
+                continue  # tariffer ændrer sig sjældent - hent kun hver 12. time
+            if now_ts - self._tariff_fail.get(key, 0) < 3600:
+                continue  # sidste forsøg fejlede: vent en time før næste (undgår 429)
+            try:
+                recs = self._fetch_pricelist(g, c, ct)
+                if not recs and key == "nettarif":
+                    recs = self._discover_grid(g)
+                if recs:
+                    cache[key] = recs
+                    fetched[key] = now_ts
+                    self._tariff_fail.pop(key, None)
+                    LOG.info("Tarif hentet: %s (%d poster)", key, len(recs))
+                else:
+                    self._tariff_fail[key] = now_ts
+                    LOG.warning("Ingen tarif-poster fundet for %s (GLN %s, koder %s)", key, g, c)
+            except Exception as err:  # noqa: BLE001
+                self._tariff_fail[key] = now_ts
+                LOG.warning("Tarif %s kunne ikke hentes nu (%s) - prøver igen om en time", key, str(err).split("\n")[0][:120])
+            time.sleep(2)
         self.tariff_cache = cache
         save_json(DATA_DIR / "tariffs.json", cache)
 
