@@ -458,15 +458,18 @@ function renderCar() {
 }
 
 // ---------- lader-rådata (tryk på bilens titel)
-$("carTitle").addEventListener("click", async () => {
+async function openDiag(path, title) {
   $("diagModal").hidden = false;
+  $("diagTitle").textContent = title;
   $("diagText").textContent = "Henter …";
   try {
-    const r = await fetch("api/diag/charger", { cache: "no-store" });
+    const r = await fetch(path, { cache: "no-store" });
     const d = await r.json();
     $("diagText").textContent = JSON.stringify(d, null, 1);
   } catch (e) { $("diagText").textContent = "Fejl: " + e; }
-});
+}
+$("carTitle").addEventListener("click", () => openDiag("api/diag/charger", "Lader – rådata"));
+$("tCam").querySelector("h2").addEventListener("click", () => openDiag("api/diag/cameras", "Kameraer – Tuyas svar"));
 $("diagClose").addEventListener("click", () => ($("diagModal").hidden = true));
 $("diagCopy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText($("diagText").textContent); toast("Kopieret"); }

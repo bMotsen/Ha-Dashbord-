@@ -235,6 +235,15 @@ async def api_diag_camera(ip: str):
     return await scan(ip)
 
 
+@app.get("/api/diag/cameras")
+async def api_diag_cameras():
+    import asyncio
+
+    if tuya is None:
+        raise HTTPException(404, "Tuya er ikke sat op")
+    return await asyncio.to_thread(tuya.camera_debug)
+
+
 @app.get("/api/diag/charger")
 def api_diag_charger() -> dict:
     if tuya is None:

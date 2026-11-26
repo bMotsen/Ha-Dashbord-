@@ -125,6 +125,7 @@ class TuyaDevice:
         return next((c for c in codes if c in self.status), None)
 
 
+STREAM_TYPES = ("rtsp", "RTSP", "hls", "HLS", "flv", "rtmp")
 CAMERA_CATEGORIES = {"sp", "dghsxj", "sgbj", "wvdp", "znjxj", "cjsxj"}
 
 
@@ -648,19 +649,35 @@ class TuyaProvider(threading.Thread):
         cloud = self._cloud()
         if cloud is None:
             raise RuntimeError("Ingen forbindelse til Tuya")
-        last = None
         answers = []
-        for kind in ("RTSP", "HLS"):
+        for kind in STREAM_TYPES:
             res = cloud.cloudrequest(f"/v1.0/devices/{cam_id}/stream/actions/allocate", action="POST", post={"type": kind})
             if isinstance(res, dict) and res.get("success") and (res.get("result") or {}).get("url"):
                 return res["result"]["url"]
             answers.append(f"{kind}: code={res.get('code') if isinstance(res, dict) else '?'} msg={res.get('msg') if isinstance(res, dict) else res}")
-            last = res
         LOG.warning("Tuya videoadresse for %s afvist: %s", dev.name, " | ".join(answers))
-        msg = (last or {}).get("msg") if isinstance(last, dict) else str(last)
-        raise RuntimeError(f"Tuya gav ingen videoadresse: {msg}. Tjek at 'IoT Video Live Stream' er tilføjet under Service API i dit Tuya-projekt")
+        first = answers[0] if answers else ""
+        raise RuntimeError(f"Tuya gav ingen videoadresse ({first}). Tryk på 'Kameraer' for detaljer")
 
-    # ------------------------------------------------------------------ control
+    def camera_debug(self) -> list[dict]:
+        cloud = self._cloud()
+        out = []
+        for c in self.camera_list():
+            dev = self.devices.get(c["id"])
+            row = {"navn": c["name"], "id": c["id"], "kategori": dev.category if dev else None,
+                   "produkt": (dev.info.get("product_name") if dev else None), "online": c["online"], "svar": {}}
+            if cloud and dev:
+                for kind in STREAM_TYPES:
+                    try:
+                        res = cloud.cloudrequest(f"/v1.0/devices/{c['id']}/stream/actions/allocate", action="POST", post={"type": kind})
+                        if isinstance(res, dict):
+                            res = {k: (v if k != "result" else {"url": "(modtaget)"} if v and v.get("url") else v) for k, v in res.items()}
+                        row["svar"][kind] = res
+                    except Exception as err:  # noqa: BLE001
+                        row["svar"][kind] = f"fejl: {err}"
+            out.append(row)
+        return out
+
     # ------------------------------------------------------------------ Feyree start/stop
     def _thing_model(self, dev: TuyaDevice):
         cloud = self._cloud()
