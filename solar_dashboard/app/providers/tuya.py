@@ -679,7 +679,7 @@ class TuyaProvider(threading.Thread):
         charging = str(dev.status.get("DeviceState") or "").lower() in ("charing", "charging")
         start = (not charging) if want_on is None else bool(want_on)
         rng = self._enum_range(dev, "ChargingOperation")
-        key = ("start", "begin", "on") if start else ("stop", "end", "off")
+        key = ("start", "begin", "open") if start else ("stop", "close", "end")
         value = next((v for v in rng if any(k in v.lower() for k in key) and "wait" not in v.lower()), None)
         if value is None:
             raise RuntimeError(f"Ukendte værdier for ChargingOperation: {rng or 'kunne ikke hentes fra Tuya'}. Send mig dem, så retter jeg knappen")
