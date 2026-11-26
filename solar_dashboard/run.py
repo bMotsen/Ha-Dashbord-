@@ -103,6 +103,7 @@ def main() -> None:
             "api_key": s("tuya_api_key") or "",
             "api_secret": opt.get("tuya_api_secret") or "",
             "api_device_id": s("tuya_device_id") or "",
+            "charger_ip": s("tuya_charger_ip") or "",
             "devices_file": str(USER_DIR / "devices.json"),
             "snapshot_file": str(USER_DIR / "snapshot.json"),
         },

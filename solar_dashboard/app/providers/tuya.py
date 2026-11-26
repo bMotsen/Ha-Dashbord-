@@ -225,6 +225,11 @@ class TuyaProvider(threading.Thread):
         for dev_id, ip in (self.cfg.get("ips") or {}).items():
             if dev_id in devs:
                 devs[dev_id]["ip"] = ip
+        cip = str(self.cfg.get("charger_ip") or "").strip()
+        if cip:
+            cid = self.cfg.get("ev_charger_id") or next((i for i, d in devs.items() if d.get("category") == "qccdz"), None)
+            if cid in devs:
+                devs[cid]["ip"] = cip
 
         with self._lock:
             for dev_id, info in devs.items():

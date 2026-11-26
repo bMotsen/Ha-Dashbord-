@@ -32,6 +32,9 @@ configuration:
   tuya_device_id:
     name: Tuya enheds-ID
     description: ID på en af dine Tuya-enheder.
+  tuya_charger_ip:
+    name: Tuya lader IP (valgfri)
+    description: Laderens faste IP-adresse på dit netværk, fx 192.168.68.127. Giver hurtigere og mere stabil aflæsning direkte fra laderen.
   weather_effects:
     name: Vejr-effekter
     description: full = hele skærmen, light = kun forgrund (hurtigere), off = slået fra.

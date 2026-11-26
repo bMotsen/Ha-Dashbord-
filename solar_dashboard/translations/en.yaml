@@ -25,6 +25,8 @@ configuration:
     name: Tuya Access Secret
   tuya_device_id:
     name: Tuya device ID
+  tuya_charger_ip:
+    name: Tuya charger IP (optional)
   weather_effects:
     name: Weather effects
   demo_when_disabled:

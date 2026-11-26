@@ -1,5 +1,5 @@
 name: Solar Dashboard
-version: "1.13.1"
+version: "1.14.0"
 slug: solar_dashboard
 description: Glas-dashboard med solceller, batteri, elpris, VW ID.3, Tuya-enheder og vejr
 arch:
@@ -28,6 +28,7 @@ options:
   tuya_api_key: ""
   tuya_api_secret: ""
   tuya_device_id: ""
+  tuya_charger_ip: ""
   weather_effects: full
   demo_when_disabled: true
 schema:
@@ -43,5 +44,6 @@ schema:
   tuya_api_key: str?
   tuya_api_secret: password?
   tuya_device_id: str?
+  tuya_charger_ip: str?
   weather_effects: list(full|light|off)
   demo_when_disabled: bool
