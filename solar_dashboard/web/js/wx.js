@@ -239,7 +239,7 @@ export class WeatherFX {
   newCloud(initial) {
     const w = rnd(260, 520);
     const puffs = Array.from({ length: 6 }, (_, i) => ({ dx: (i / 5) * w - w / 2 + rnd(-30, 30), dy: rnd(-40, 40), r: rnd(90, 170) }));
-    return { x: initial ? rnd(-w, this.W) : -w - rnd(0, 300), y: rnd(-60, this.H * 0.55), w, v: rnd(6, 14), a: rnd(0.05, 0.11), puffs };
+    return { x: initial ? rnd(-w, this.W) : -w - rnd(0, 300), y: rnd(-60, this.H * 0.55), w, v: rnd(6, 14), a: rnd(0.09, 0.17), puffs };
   }
 
   // ---------------- forgrund (oven på fliserne)

@@ -99,7 +99,6 @@ class WeatherProvider(threading.Thread):
 
     def parse(self, d: dict) -> dict:
         cur = d.get("current") or {}
-        text, ic, effect = describe(cur.get("weather_code"))
         now = datetime.now(self.tz)
         hourly = []
         h = d.get("hourly") or {}
@@ -119,6 +118,16 @@ class WeatherProvider(threading.Thread):
                 "wind": (h.get("wind_speed_10m") or [None] * (i + 1))[i],
                 "wind_dir": (h.get("wind_direction_10m") or [None] * (i + 1))[i],
             })
+        # "overskyet" i de aktuelle data men nedbør i prognosen for denne time (eller målt nedbør): brug det
+        code = cur.get("weather_code")
+        temp = cur.get("temperature_2m")
+        if code is not None and code < 51 and hourly and (hourly[0]["code"] or 0) >= 51:
+            code = hourly[0]["code"]
+        precip = cur.get("precipitation") or 0.0
+        snowfall = cur.get("snowfall") or 0.0
+        if code is not None and code < 51 and (snowfall > 0.05 or precip > 0.05):
+            code = 71 if (snowfall > 0.05 or (temp is not None and temp <= 1.0)) else 61
+        text, ic, effect = describe(code)
         days = []
         dd = d.get("daily") or {}
         for i, t in enumerate(dd.get("time") or []):
@@ -146,7 +155,7 @@ class WeatherProvider(threading.Thread):
                 "temp": cur.get("temperature_2m"),
                 "feels_like": cur.get("apparent_temperature"),
                 "humidity": cur.get("relative_humidity_2m"),
-                "code": cur.get("weather_code"),
+                "code": code,
                 "text": text,
                 "icon": ic,
                 "effect": effect,
