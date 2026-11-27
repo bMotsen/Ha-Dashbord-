@@ -48,17 +48,23 @@ class VWProvider(threading.Thread):
     def _connect(self) -> None:
         from carconnectivity import carconnectivity  # importeres først her (tungt bibliotek)
 
+        data_act = str(self.cfg.get("source") or "app").lower() == "data_act"
         conn_cfg: dict[str, Any] = {
             "username": self.cfg["username"],
             "password": self.cfg["password"],
-            "interval": max(int(self.cfg.get("interval_seconds") or 300), 180),
+            "interval": 900 if data_act else max(int(self.cfg.get("interval_seconds") or 300), 180),
         }
-        if self.cfg.get("spin"):
+        if data_act:
+            # VW's officielle EU Data Act-portal: kun læsning, data opdateres ca. hvert 15. minut
+            for k in ("country", "language", "brand", "vin"):
+                if self.cfg.get(k):
+                    conn_cfg[k] = self.cfg[k]
+        elif self.cfg.get("spin"):
             conn_cfg["spin"] = str(self.cfg["spin"])
         config = {
             "carConnectivity": {
                 "log_level": "warning",
-                "connectors": [{"type": "volkswagen", "config": conn_cfg}],
+                "connectors": [{"type": "vw_eu_data_act" if data_act else "volkswagen", "config": conn_cfg}],
                 "plugins": [],
             }
         }
@@ -123,7 +129,12 @@ class VWProvider(threading.Thread):
                 return v
         return vehicles[0] if vehicles else None
 
+    def _read_only(self) -> bool:
+        return str(self.cfg.get("source") or "app").lower() == "data_act"
+
     def set_climate(self, start: bool) -> dict:
+        if self._read_only():
+            raise RuntimeError("Data fra VW's dataportal er kun til aflæsning – klimaet kan ikke styres herfra")
         v = self._vehicle()
         if v is None:
             raise RuntimeError("Ingen bil fundet")
@@ -137,6 +148,8 @@ class VWProvider(threading.Thread):
         return {"on": start}
 
     def set_target(self, level: float) -> dict:
+        if self._read_only():
+            raise RuntimeError("Data fra VW's dataportal er kun til aflæsning – ladegrænsen kan ikke ændres herfra")
         level = max(50, min(100, int(round(level / 10.0)) * 10))
         v = self._vehicle()
         if v is None:
@@ -161,7 +174,16 @@ class VWProvider(threading.Thread):
         rng_unit = getattr(getattr(drive, "range", None), "unit", None)
         if rng is not None and rng_unit is not None and "mi" in str(getattr(rng_unit, "value", rng_unit)).lower():
             rng = rng * 1.609
+        age_min = None
+        try:
+            lu = getattr(getattr(drive, "level", None), "last_updated", None)
+            if isinstance(lu, datetime):
+                age_min = max(int((datetime.now(lu.tzinfo) - lu).total_seconds() // 60), 0)
+        except Exception:  # noqa: BLE001
+            age_min = None
         return {
+            "read_only": self._read_only(),
+            "data_age_min": age_min,
             "ok": True,
             "demo": False,
             "source": "vw",

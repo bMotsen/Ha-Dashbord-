@@ -91,6 +91,7 @@ DEFAULTS: dict[str, Any] = {
         "enabled": False,
         "username": "",
         "password": "",
+        "source": "app",            # app = Volkswagen-appens API, data_act = VW's EU Data Act-portal (kun læsning)
         "spin": "",
         "vin": "",                  # tom = første elbil på kontoen
         "name": "ID.3",

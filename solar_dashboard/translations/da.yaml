@@ -22,6 +22,9 @@ configuration:
     description: Samme login som Volkswagen-appen. Tom = demo-bil.
   vw_password:
     name: VW kodeord
+  vw_source:
+    name: VW datakilde
+    description: "app = Volkswagen-appens API (kan være blokeret af VW). data_act = VW's officielle dataportal (kun aflæsning, data er op til ca. 15 min gamle). Kræver at du har slået en dataanmodning til på eu-data-act.vwgroup-datahub.com."
   car_name:
     name: Bilens navn
   tuya_api_key:

@@ -17,6 +17,8 @@ configuration:
     name: VW e-mail
   vw_password:
     name: VW password
+  vw_source:
+    name: VW data source
   car_name:
     name: Car name
   tuya_api_key:

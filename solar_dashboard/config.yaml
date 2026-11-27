@@ -1,5 +1,5 @@
 name: Solar Dashboard
-version: "1.18.1"
+version: "1.19.0"
 slug: solar_dashboard
 description: Glas-dashboard med solceller, batteri, elpris, VW ID.3, Tuya-enheder og vejr
 arch:
@@ -24,6 +24,7 @@ options:
   sell_fee: 0
   vw_username: ""
   vw_password: ""
+  vw_source: app
   car_name: ID.3
   tuya_api_key: ""
   tuya_api_secret: ""
@@ -40,6 +41,7 @@ schema:
   sell_fee: float
   vw_username: str?
   vw_password: password?
+  vw_source: list(app|data_act)
   car_name: str
   tuya_api_key: str?
   tuya_api_secret: password?

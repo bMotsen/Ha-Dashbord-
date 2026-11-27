@@ -445,15 +445,15 @@ function renderCar() {
     <div class="car-main">
       <div>
         <div class="car-soc">${num(soc, 0)}<small>%</small></div>
-        <div class="car-range">${car.range_km != null ? `${num(car.range_km, 0)} km rækkevidde` : car.error ? esc(car.error).slice(0, 60) : ""}</div>
+        <div class="car-range">${car.range_km != null ? `${num(car.range_km, 0)} km rækkevidde${car.data_age_min != null && car.data_age_min >= 5 ? ` · ${car.data_age_min} min gamle data` : ""}` : car.error ? esc(car.error).slice(0, 60) : ""}</div>
       </div>
       <div class="car-img">${carSVG(charging)}</div>
     </div>
     <div class="car-bar ${charging ? "charging" : ""}">
       <i style="width:${Math.max(0, Math.min(100, soc ?? 0))}%"></i>
-      ${target ? `<div class="target" id="carTarget" style="left:${target}%"><span>Mål ${num(target, 0)} %</span></div>` : ""}
+      ${target && !car.read_only ? `<div class="target" id="carTarget" style="left:${target}%"><span>Mål ${num(target, 0)} %</span></div>` : ""}
     </div>
-    <div class="car-mini">${minis.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}${car.ok !== false ? climBtn : ""}</div>`);
+    <div class="car-mini">${minis.map(([i, v, l]) => `<div class="mini">${icon(i)}<b>${v}</b><span>${l}</span></div>`).join("")}${car.ok !== false && !car.read_only ? climBtn : ""}</div>`);
   $("carBody").style.cssText = "display:flex;flex-direction:column;flex:1;min-height:0";
 }
 

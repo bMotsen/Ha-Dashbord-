@@ -96,6 +96,7 @@ def main() -> None:
             "enabled": bool(s("vw_username")),
             "username": s("vw_username") or "",
             "password": opt.get("vw_password") or "",
+            "source": s("vw_source") or "app",
             "name": s("car_name") or "ID.3",
         },
         "tuya": {

@@ -9,6 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /opt/dashboard
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+# valgfrit: VW's officielle dataportal (hvis installationen fejler, virker resten stadig)
+RUN pip install "carconnectivity-connector-vw-eu-data-act>=0.3" || echo "vw_eu_data_act ikke installeret"
 
 COPY app ./app
 COPY web ./web
